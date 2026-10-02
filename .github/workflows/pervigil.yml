@@ -1,11 +1,11 @@
-name: night-shift
+name: pervigil
 on:
   schedule:
     - cron: "7 * * * *"   # hourly; the agent itself decides whether a decision is due
   workflow_dispatch:
 permissions:
   contents: write
-concurrency: night-shift
+concurrency: pervigil
 jobs:
   run:
     runs-on: ubuntu-latest
@@ -19,11 +19,11 @@ jobs:
           LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
           LLM_MODEL: ${{ secrets.LLM_MODEL }}
-        run: python -m nightshift.live
+        run: python -m pervigil.live
       - name: Commit log
         run: |
-          git config user.name "night-shift"
-          git config user.email "night-shift@users.noreply.github.com"
+          git config user.name "pervigil"
+          git config user.email "pervigil@users.noreply.github.com"
           git add data/candles data/earnings.json state logs
-          git diff --cached --quiet || git commit -m "night shift: $(date -u +%Y-%m-%dT%H:%MZ)"
+          git diff --cached --quiet || git commit -m "pervigil: $(date -u +%Y-%m-%dT%H:%MZ)"
           git push

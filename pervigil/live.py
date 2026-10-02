@@ -1,6 +1,6 @@
 """Live paper trading. Run on a schedule (hourly); each run does at most one decision cycle.
 
-    python -m nightshift.live
+    python -m pervigil.live
 
 It uses the same snapshot, policy, risk layer, paper book and decision schedule as the proving ground,
 plus live headlines. State lives in state/book.json; every action is appended to logs/paper_log.jsonl.
@@ -60,7 +60,7 @@ def morning_note(session_id, ret, equity):
     summary = f"Session {session_id}: return {ret:+.2%}, equity {equity:,.2f} USDT, {len(recs)} log entries."
     try:
         body = llm.chat(
-            "You are Night Shift's reporting voice. Write the morning handoff note for a human trader who was "
+            "You are Pervigil's reporting voice. Write the morning handoff note for a human trader who was "
             "asleep: what moved while the US market was closed, what the agent did and why, what the risk layer "
             "blocked, and the result. Under 150 words, plain English, no hype. Use only the facts given.",
             summary + "\n\nLog:\n" + json.dumps(facts)[:12000], use_cache=False)
@@ -103,7 +103,7 @@ def run(now_ms=None):
         morning_note(old["id"], ret, equity)
 
     if session is None:
-        print("US cash market is open: Night Shift is off duty")
+        print("US cash market is open: Pervigil is off duty")
         return
 
     # 2. Closed hours: mark, check stops, decide if a scheduled decision time has passed.

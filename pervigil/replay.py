@@ -1,7 +1,7 @@
 """Proving ground: replay past closed sessions through a policy, the risk layer and the paper book.
 
-    python -m nightshift.replay rules            # the three fixed-rule baselines
-    python -m nightshift.replay agent [runs]     # the LLM agent, `runs` independent passes (default 1)
+    python -m pervigil.replay rules            # the three fixed-rule baselines
+    python -m pervigil.replay agent [runs]     # the LLM agent, `runs` independent passes (default 1)
 
 At each step the policy sees only candles that had closed by that moment (see features.Market.price_at).
 """
