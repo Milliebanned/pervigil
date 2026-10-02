@@ -36,6 +36,18 @@ def config():
     return cfg
 
 
+_last_call = [0.0]
+
+
+def _pace():
+    """LLM_MIN_GAP (seconds) spaces out uncached calls, so a long replay stays inside a daily token quota."""
+    gap = float(os.environ.get("LLM_MIN_GAP", 0))
+    wait = _last_call[0] + gap - time.time()
+    if wait > 0:
+        time.sleep(wait)
+    _last_call[0] = time.time()
+
+
 def chat(system, user, run=0, temperature=0.2, use_cache=True):
     """-> assistant text. `run` separates repeated calls on the same prompt (consistency test)."""
     cfg = config()
@@ -51,6 +63,7 @@ def chat(system, user, run=0, temperature=0.2, use_cache=True):
     req = urllib.request.Request(cfg["LLM_BASE_URL"].rstrip("/") + "/chat/completions", data=body, headers={
         "Content-Type": "application/json", "Authorization": f"Bearer {cfg['LLM_API_KEY']}",
         "User-Agent": "pervigil/1.0"})   # some providers reject the default urllib agent
+    _pace()
     err = None
     for i in range(30):   # rides out rate limits and network drops of up to ~25 minutes
         try:
@@ -64,6 +77,10 @@ def chat(system, user, run=0, temperature=0.2, use_cache=True):
             err = RuntimeError(f"HTTP {e.code}: {e.read()[:300]!r}")
             if e.code not in (408, 429, 500, 502, 503, 504):
                 break
+            wait = e.headers.get("Retry-After")
+            if wait:   # free tiers say exactly how long to wait; do that instead of guessing
+                time.sleep(min(float(wait) + 2, 900))
+                continue
         except Exception as e:
             err = e
         time.sleep(min(5 * 2 ** i, 60))   # free tiers rate-limit; back off

@@ -285,7 +285,7 @@ def build(now_ms=None):
     now_ms = now_ms or int(time.time() * 1000)
     card = scorecard.build()
     results = {os.path.basename(p)[:-5]: json.load(open(p)) for p in glob.glob(os.path.join(scorecard.RESULTS, "*.json"))
-               if not p.endswith("scorecard.json")}
+               if not p.endswith("scorecard.json") and "consistency_run" not in p}
     hero_logo = LOGO.format(ink="#f3efe4", accent="#e9b44c")
     steps = "".join(f"<div class='card step'><b>{e(t)}</b>{e(d)}</div>" for t, d in STEPS)
     page = f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">

@@ -31,7 +31,8 @@ cp .env.example .env            # any OpenAI-compatible endpoint
 python -m pervigil.data       # download / refresh candles
 python -m unittest discover tests
 python -m pervigil.replay rules
-python -m pervigil.replay agent 3
+python -m pervigil.replay agent
+python -m pervigil.replay consistency 2
 python -m pervigil.scorecard
 python -m pervigil.live       # one live cycle (scheduled hourly by GitHub Actions)
 python -m pervigil.site       # build docs/index.html

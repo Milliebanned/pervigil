@@ -1,0 +1,1 @@
+{"model": "openai/gpt-oss-120b", "run": 0, "text": "{\n  \"decisions\": [],\n  \"note\": \"All overnight moves are tiny (z < 0.1) and below the 0.30% round\u2011trip cost threshold, so no clear edge. With modest Bitcoin upside and no earnings surprises, staying flat is prudent.\"\n}"}

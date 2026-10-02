@@ -80,32 +80,35 @@ def _direction(w):
     return (w > 0.005) - (w < -0.005)
 
 
-def consistency(runs):
+def consistency(full, repeats):
     """Same nights, independent passes: how often does the agent make the same call?
 
-    Compared at the first decision of each session, where every pass starts flat and sees identical inputs.
+    Compared at the opening decision of a night, where every pass is flat and sees identical inputs.
     """
-    if len(runs) < 2:
+    if not full or not repeats:
         return None
-    same = total = same_active = total_active = 0
-    for sess in zip(*[r["sessions"] for r in runs]):
-        firsts = [s["decisions"][0] for s in sess if s["decisions"]]
-        if len(firsts) < len(runs):
-            continue
-        for t in firsts[0]["seen"]:
-            dirs = [_direction(d["proposed"].get(t, 0)) for d in firsts]
+    first = {s["session"]: s["decisions"][0] for s in full["sessions"] if s["decisions"]}
+    same = total = same_active = total_active = nights = 0
+    common = set(first)
+    for r in repeats:
+        common &= {s["session"] for s in r["sessions"] if s["decisions"]}
+    by = [{s["session"]: s["decisions"][0] for s in r["sessions"] if s["decisions"]} for r in repeats]
+    for sid in sorted(common):
+        nights += 1
+        calls = [first[sid]] + [b[sid] for b in by]
+        for t in first[sid]["seen"]:
+            dirs = [_direction(d["proposed"].get(t, 0)) for d in calls]
             total += 1
             same += len(set(dirs)) == 1
             if any(dirs):
                 total_active += 1
                 same_active += len(set(dirs)) == 1
     return {
-        "runs": len(runs),
+        "passes": 1 + len(repeats),
+        "nights_compared": nights,
         "name_decisions_compared": total,
         "agreement": same / total if total else None,
-        "agreement_when_any_run_traded": same_active / total_active if total_active else None,
-        "sharpe_by_run": [sharpe([s["ret"] for s in r["sessions"]]) for r in runs],
-        "total_return_by_run": [total_return([s["ret"] for s in r["sessions"]]) for r in runs],
+        "agreement_when_any_pass_traded": same_active / total_active if total_active else None,
     }
 
 
@@ -128,11 +131,11 @@ def build():
         name = os.path.basename(p)[:-5]
         if name != "scorecard":
             results[name] = json.load(open(p))
+    repeats = [results.pop(n) for n in sorted(results) if n.startswith("consistency_run")]
     card = {"policies": {n: metrics(r) for n, r in results.items()}}
-    agent_runs = [results[n] for n in sorted(results) if n.startswith("agent_run")]
-    card["consistency"] = consistency(agent_runs)
+    card["consistency"] = consistency(results.get("agent_run0"), repeats)
     card["stress"] = stress(results) if results else []
-    if agent_runs:
+    if "agent_run0" in results:
         a = card["policies"]["agent_run0"]
         card["value_added"] = {
             n: {"total_return": a["total_return"] - m["total_return"], "sharpe": a["sharpe"] - m["sharpe"],
