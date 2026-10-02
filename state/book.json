@@ -1,0 +1,33 @@
+{
+ "book": {
+  "cash": 10000.0,
+  "qty": {},
+  "entry": {},
+  "traded": 0.0,
+  "costs": 0.0
+ },
+ "session": {
+  "id": "2026-10-05",
+  "open_ms": 1791207000000,
+  "close_ms": 1790971200000,
+  "kind": "weekend",
+  "last_prices": {
+   "NVDA": 233.99,
+   "TSLA": 370.7,
+   "AAPL": 333.79,
+   "MSFT": 517.53,
+   "AMZN": 251.53,
+   "GOOGL": 343.59,
+   "META": 728.08,
+   "SPY": 769.66,
+   "QQQ": 749.58,
+   "COIN": 183.0
+  }
+ },
+ "risk": {
+  "start_equity": 10000.0,
+  "halted": false,
+  "blocked": []
+ },
+ "last_decision_ms": 0
+}
