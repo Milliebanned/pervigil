@@ -1,7 +1,8 @@
 """Proving ground: replay past closed sessions through a policy, the risk layer and the paper book.
 
     python -m pervigil.replay rules            # the three fixed-rule baselines
-    python -m pervigil.replay agent [runs]     # the LLM agent, `runs` independent passes (default 1)
+    python -m pervigil.replay agent            # the LLM agent, full pass
+    python -m pervigil.replay consistency [n]  # n repeat passes of each night's opening decision (default 2)
 
 At each step the policy sees only candles that had closed by that moment (see features.Market.price_at).
 """
@@ -57,10 +58,10 @@ def decide(policy, market, session, t_ms, book, prices, state, earnings=None):
     }
 
 
-def run_session(policy, market, session, book, step_h=STEP_H, earnings=None):
+def run_session(policy, market, session, book, step_h=STEP_H, earnings=None, first_only=False):
     prices = _prices(market, session.close_ms, {})
     state = risk.SessionRisk(book.equity(prices))
-    marks = set(checkpoints(session, step_h))
+    marks = set(checkpoints(session, step_h)[:1] if first_only else checkpoints(session, step_h))
     decisions, stops = [], []
     t = session.close_ms + STEP_MS
     while t <= session.open_ms:
@@ -88,11 +89,14 @@ def sessions_for(candles):
     return [s for s in closed_sessions(lo, hi) if s.open_ms + EXIT_AFTER_OPEN_MS <= min(ends) + STEP_MS]
 
 
-def run(policy, name, candles=None, step_h=STEP_H, earnings=None, progress=False):
+def run(policy, name, candles=None, step_h=STEP_H, earnings=None, progress=False, first_only=False, every=1):
+    """first_only: only the opening decision of each session. every: take every n-th session."""
     candles = candles or load_all()
     market, book, out = Market(candles), Book(), []
-    for s in sessions_for(candles):
-        out.append(run_session(policy, market, s, book, step_h, earnings))
+    for s in sessions_for(candles)[::every]:
+        if first_only:
+            book = Book()   # each opening decision starts flat at the same equity, as in the full pass
+        out.append(run_session(policy, market, s, book, step_h, earnings, first_only))
         if progress:
             print(f"{name} {s.id} {s.kind:9} ret={out[-1]['ret']:+.3%} equity={out[-1]['end_equity']:.0f}", flush=True)
     result = {"policy": name, "step_h": step_h, "traded": book.traded, "costs": book.costs, "sessions": out}
@@ -116,8 +120,12 @@ def main(argv):
             r = run(pol, name, candles, earnings=earnings)
             print(name, len(r["sessions"]), "sessions, final equity", round(r["sessions"][-1]["end_equity"], 2))
     elif what == "agent":
-        for i in range(int(argv[2]) if len(argv) > 2 else 1):
-            run(policies.make_agent(run=i), f"agent_run{i}", candles, earnings=earnings, progress=True)
+        run(policies.make_agent(run=0), "agent_run0", candles, earnings=earnings, progress=True)
+    elif what == "consistency":
+        # Repeat passes of the opening decision on every 3rd night, to measure how stable the agent's call is.
+        for i in range(1, 1 + (int(argv[2]) if len(argv) > 2 else 2)):
+            run(policies.make_agent(run=i), f"consistency_run{i}", candles, earnings=earnings, progress=True,
+                first_only=True, every=3)
     else:
         raise SystemExit(__doc__)
 

@@ -1,0 +1,1 @@
+{"model": "openai/gpt-oss-120b", "run": 0, "text": "{\n  \"decisions\": [\n    {\n      \"ticker\": \"TSLA\",\n      \"weight\": 0.0,\n      \"reason\": \"tiny upside move not enough to cover 0.15% cost\"\n    }\n  ],\n  \"note\": \"All overnight moves are minimal and Bitcoin's modest rise signals low risk appetite; staying flat is prudent.\"\n}"}
