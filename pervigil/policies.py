@@ -29,7 +29,7 @@ def _rule(sign):
 always_fade = _rule(-1)     # bet the closed-hours move reverses
 always_follow = _rule(+1)   # bet the closed-hours move continues
 
-SYSTEM = """You are Night Shift, an autonomous trading agent for tokenized US stocks (rTokens) on Bitget.
+SYSTEM = """You are Pervigil, an autonomous trading agent for tokenized US stocks (rTokens) on Bitget.
 You only act while the US cash market is CLOSED. During these hours the rToken price is the market's
 guess at where the real stock will open. Your job: decide, per name, whether that guess looks right,
 overdone, or not enough, and take a position only when you have a real reason.

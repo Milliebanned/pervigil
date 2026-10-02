@@ -50,7 +50,7 @@ def chat(system, user, run=0, temperature=0.2, use_cache=True):
     }).encode()
     req = urllib.request.Request(cfg["LLM_BASE_URL"].rstrip("/") + "/chat/completions", data=body, headers={
         "Content-Type": "application/json", "Authorization": f"Bearer {cfg['LLM_API_KEY']}",
-        "User-Agent": "nightshift/1.0"})   # some providers reject the default urllib agent
+        "User-Agent": "pervigil/1.0"})   # some providers reject the default urllib agent
     err = None
     for i in range(6):
         try:

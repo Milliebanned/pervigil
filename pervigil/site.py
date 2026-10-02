@@ -1,6 +1,6 @@
 """Build the public results page (docs/index.html, served by GitHub Pages) from the scorecard and live log.
 
-    python -m nightshift.site
+    python -m pervigil.site
 """
 import glob
 import html
@@ -44,7 +44,7 @@ def pct(x, signed=True, cls=True):
 
 
 def name(n):
-    return LABEL.get(n, n.replace("agent_run", "Night Shift agent, pass "))
+    return LABEL.get(n, n.replace("agent_run", "Pervigil agent, pass "))
 
 
 def policy_table(card):
@@ -119,8 +119,8 @@ def build():
             ("Max drawdown", pct(agent["max_drawdown"])),
         ]) + "</div>"
     page = f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Night Shift</title><style>{CSS}</style></head><body><main>
-<h1>Night Shift</h1>
+<title>Pervigil</title><style>{CSS}</style></head><body><main>
+<h1>Pervigil</h1>
 <p class="sub">An LLM agent that trades tokenized US stocks on Bitget only while the US market is closed, and a proving ground
 that measures whether it beats a fixed rule. Paper trading only. Bitget AI Base Camp Hackathon S2, Agentic Trading.</p>
 {tiles}

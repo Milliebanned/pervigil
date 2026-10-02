@@ -1,4 +1,4 @@
-# Night Shift
+# Pervigil
 
 An LLM agent that trades tokenized US stocks (Bitget rTokens) only while the US cash market is closed,
 plus a proving ground that measures whether the agent beats a fixed rule. Paper trading only.
@@ -22,13 +22,13 @@ Python 3.12, standard library only.
 
 ```
 cp .env.example .env            # any OpenAI-compatible endpoint
-python -m nightshift.data       # download / refresh candles
+python -m pervigil.data       # download / refresh candles
 python -m unittest discover tests
-python -m nightshift.replay rules
-python -m nightshift.replay agent 3
-python -m nightshift.scorecard
-python -m nightshift.live       # one live cycle (scheduled hourly by GitHub Actions)
-python -m nightshift.site       # build docs/index.html
+python -m pervigil.replay rules
+python -m pervigil.replay agent 3
+python -m pervigil.scorecard
+python -m pervigil.live       # one live cycle (scheduled hourly by GitHub Actions)
+python -m pervigil.site       # build docs/index.html
 ```
 
 ## Where things are

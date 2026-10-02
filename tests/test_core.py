@@ -2,11 +2,11 @@
 import unittest
 from datetime import datetime, timezone
 
-from nightshift import risk
-from nightshift.data import STEP_MS
-from nightshift.features import Market
-from nightshift.paper import FEE, SLIPPAGE, Book
-from nightshift.sessions import closed_sessions, current_session, is_market_open
+from pervigil import risk
+from pervigil.data import STEP_MS
+from pervigil.features import Market
+from pervigil.paper import FEE, SLIPPAGE, Book
+from pervigil.sessions import closed_sessions, current_session, is_market_open
 
 
 def utc(*a):

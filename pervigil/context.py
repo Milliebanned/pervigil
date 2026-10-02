@@ -16,7 +16,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EARNINGS_PATH = os.path.join(ROOT, "data", "earnings.json")
 ETFS = {"SPY", "QQQ"}
 HEAD = {"Content-Type": "application/json", "Accept": "application/json, text/event-stream",
-        "User-Agent": "nightshift/1.0"}
+        "User-Agent": "pervigil/1.0"}
 
 
 def _post(payload, sid=None):
@@ -30,7 +30,7 @@ class Mcp:
     def __init__(self):
         self.sid, _ = _post({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {
             "protocolVersion": "2025-03-26", "capabilities": {},
-            "clientInfo": {"name": "nightshift", "version": "1.0"}}})
+            "clientInfo": {"name": "pervigil", "version": "1.0"}}})
         _post({"jsonrpc": "2.0", "method": "notifications/initialized"}, self.sid)
         self._id = 1
 

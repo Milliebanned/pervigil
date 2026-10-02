@@ -29,7 +29,7 @@ def http_json(path, params=None, tries=10):
     for i in range(tries):
         try:
             if i % 2 == 0:
-                req = urllib.request.Request(url, headers={"User-Agent": "nightshift/1.0"})
+                req = urllib.request.Request(url, headers={"User-Agent": "pervigil/1.0"})
                 with urllib.request.urlopen(req, timeout=20) as r:
                     body = json.load(r)
             else:

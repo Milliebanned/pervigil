@@ -1,6 +1,6 @@
 """Turn replay results into the benchmark scorecard.
 
-    python -m nightshift.scorecard      # reads results/*.json, writes results/scorecard.json and SCORECARD.md
+    python -m pervigil.scorecard      # reads results/*.json, writes results/scorecard.json and SCORECARD.md
 """
 import glob
 import json
