@@ -52,7 +52,7 @@ def chat(system, user, run=0, temperature=0.2, use_cache=True):
         "Content-Type": "application/json", "Authorization": f"Bearer {cfg['LLM_API_KEY']}",
         "User-Agent": "pervigil/1.0"})   # some providers reject the default urllib agent
     err = None
-    for i in range(6):
+    for i in range(30):   # rides out rate limits and network drops of up to ~25 minutes
         try:
             with urllib.request.urlopen(req, timeout=90) as r:
                 text = json.load(r)["choices"][0]["message"]["content"]

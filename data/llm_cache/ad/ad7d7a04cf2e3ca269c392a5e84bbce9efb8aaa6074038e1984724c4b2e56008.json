@@ -1,0 +1,1 @@
+{"model": "openai/gpt-oss-120b", "run": 0, "text": "{\n  \"decisions\": [],\n  \"note\": \"All rToken moves are tiny (z\u202f\u2248\u202f0) and well below the 0.3% net\u2011profit threshold after costs. With Bitcoin flat and no earnings catalysts, staying flat is the prudent choice.\"\n}"}

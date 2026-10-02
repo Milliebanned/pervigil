@@ -1,0 +1,1 @@
+{"model": "openai/gpt-oss-120b", "run": 0, "text": "{\n  \"decisions\": [\n    {\n      \"ticker\": \"NVDA\",\n      \"weight\": 0.10,\n      \"reason\": \"NVDA fell >3% with no earnings or news, likely an overreaction; a modest long bet may capture the bounce at open.\"\n    }\n  ],\n  \"note\": \"All other names show only modest moves well within trading cost; stay flat.\"\n}"}

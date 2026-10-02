@@ -1,0 +1,1 @@
+{"model": "openai/gpt-oss-120b", "run": 0, "text": "{\n  \"decisions\": [],\n  \"note\": \"All rToken moves are tiny relative to their normal daily volatility and Bitcoin's risk appetite is neutral, so no trade clears the 0.15% cost threshold.\"\n}"}

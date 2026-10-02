@@ -1,0 +1,1 @@
+{"model": "openai/gpt-oss-120b", "run": 0, "text": "{\n  \"decisions\": [],\n  \"note\": \"All moves are tiny relative to typical daily volatility and below the 0.15% per\u2011side cost threshold, so no clear edge to take a position this weekend.\"\n}"}

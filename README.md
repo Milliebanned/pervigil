@@ -1,4 +1,10 @@
+<img src="docs/logo.svg" width="72" alt="Pervigil logo">
+
 # Pervigil
+
+*Vigilat dum dormis* — it keeps watch while you sleep.
+
+**Live page:** https://milliebanned.github.io/pervigil/
 
 An LLM agent that trades tokenized US stocks (Bitget rTokens) only while the US cash market is closed,
 plus a proving ground that measures whether the agent beats a fixed rule. Paper trading only.
