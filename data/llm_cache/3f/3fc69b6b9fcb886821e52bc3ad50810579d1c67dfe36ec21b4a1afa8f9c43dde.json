@@ -1,0 +1,1 @@
+{"model": "openai/gpt-oss-120b", "run": 0, "text": "{\n  \"decisions\": [\n    {\n      \"ticker\": \"GOOGL\",\n      \"weight\": -0.05,\n      \"reason\": \"down >1\u03c3 likely overdone, reduce short exposure\"\n    }\n  ],\n  \"note\": \"Most names show modest moves not worth trading; GOOGL's sharp drop appears excessive given mild Bitcoin rally, so we trim the short.\"\n}"}

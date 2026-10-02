@@ -1,0 +1,1 @@
+{"model": "openai/gpt-oss-120b", "run": 0, "text": "{\n  \"decisions\": [\n    {\n      \"ticker\": \"QQQ\",\n      \"weight\": 0.05,\n      \"reason\": \"rToken up 0.44% exceeds trading cost, modest bullish edge\"\n    }\n  ],\n  \"note\": \"NVDA already at max short; other stocks show moves too small to cover costs; QQQ offers a small upside opportunity.\"\n}"}

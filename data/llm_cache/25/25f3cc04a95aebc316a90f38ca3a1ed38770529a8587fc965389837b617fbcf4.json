@@ -1,0 +1,1 @@
+{"model": "openai/gpt-oss-120b", "run": 0, "text": "{\n  \"decisions\": [\n    {\n      \"ticker\": \"TSLA\",\n      \"weight\": -0.07,\n      \"reason\": \"down move exceeds cost and aligns with low risk appetite\"\n    }\n  ],\n  \"note\": \"Most names show negligible moves; only TSLA shows a modest decline that justifies a small short.\"\n}"}
