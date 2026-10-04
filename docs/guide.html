@@ -1,3 +1,16 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>Pervigil docs · how the night-shift agent works</title>
+<meta name="description" content="What Pervigil is, the problem it answers, how one decision works, its risk rules and its honest results.">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' role='img' aria-label='Pervigil'><rect width='48' height='48' rx='12' fill='%235a58f2'/><g fill='%23ffffff'><path d='M6 24A20 20 0 0 1 42 24A20 20 0 0 1 6 24Z'/></g><g fill='%235a58f2'><circle cx='24' cy='24' r='8'/></g><g fill='%23ffffff'><circle cx='26.6' cy='22.4' r='6.4'/></g><g fill='%233ff0a6'><circle cx='26.6' cy='22.4' r='2.7'/></g></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Michroma&display=swap" rel="stylesheet">
+<style>
 /* ---------- Tokens. Dark is the default; the switch in the top bar flips to light. ---------- */
 :root {
   color-scheme: dark;
@@ -308,3 +321,125 @@ footer strong { color: var(--text); font-weight: 600; }
 .facts dd { font-size: 0.9rem; line-height: 1.5; }
 .facts dd b { font-size: 1.25rem; font-variant-numeric: tabular-nums; display: block; margin-bottom: 2px; }
 @media (max-width: 640px) { .pair { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="logo" viewBox="0 0 48 48">
+<rect class="logo-bg" width="48" height="48" rx="12"/><g class="logo-fg"><path d="M6 24A20 20 0 0 1 42 24A20 20 0 0 1 6 24Z"/></g>
+<g class="logo-bg"><circle cx="24" cy="24" r="8"/></g><g class="logo-fg"><circle cx="26.6" cy="22.4" r="6.4"/></g>
+<g class="logo-dot"><circle cx="26.6" cy="22.4" r="2.7"/></g></symbol></svg>
+<div class="shell">
+<aside class="side panel">
+  <a class="brand" href="index.html"><svg aria-hidden="true"><use href="#logo"/></svg>Pervigil</a>
+  <nav class="nav" aria-label="Sections"><a class="on" href="#top">What it is</a><a href="#problem">The problem</a><a href="#answer">The answer</a><a href="#cycle">One decision</a><a href="#rules">The rule book</a><a href="#proof">Is it any good</a><a href="#run">Run your own</a><a href="#limits">Limits</a></nav>
+  <a class="btn docs" href="index.html">See it live</a>
+  <p class="side-foot"><a href="https://github.com/Milliebanned/pervigil">Code on GitHub</a><br>Paper trading only.</p>
+</aside>
+<main>
+  <div class="top panel"><p class="status off"><span class="pill"><i aria-hidden="true"></i>Docs</span><span>A five-minute read</span></p>
+    <label class="theme"><input type="checkbox" id="theme-switch" aria-label="Use light theme"><span class="label">Light</span></label></div>
+  <section class="panel hero" id="top">
+    <div class="hero-id"><svg aria-hidden="true"><use href="#logo"/></svg><h1>Pervigil</h1></div>
+    <p class="motto" lang="la">Vigilat dum dormis<span lang="en">It keeps watch while you sleep.</span></p>
+    <p class="lede">Pervigil is a night watchman for US stocks. While the real stock market is closed and you are asleep, it watches the prices, decides whether to trade, explains itself in one sentence, and hands everything back flat in the morning.</p>
+    <p class="cta"><a class="btn" href="index.html">See it live</a><a class="btn ghost" href="index.html#lab">Beat the agent</a></p>
+  </section>
+  <section class="panel" id="problem"><div class="sec-head"><h2>The problem</h2></div><div class="prose">
+    <p class="big">US stocks used to sleep when Wall Street slept. They don't any more.</p>
+    <p>On Bitget, tokenised copies of Apple, Tesla, Nvidia and other US stocks trade all day, every day. The real
+    market is only open 32.5 hours a week. For the other 80% of the week, prices keep moving while nobody is at the desk.</p>
+    <ul>
+      <li>Earnings come out after the close. News breaks on Saturday. Bitcoin moves on Sunday.</li>
+      <li>A person cannot watch ten stocks through every night and weekend.</li>
+      <li>Plenty of AI trading agents claim they can. Almost none of them show whether they beat a rule a child could write.</li>
+    </ul></div></section>
+  <section class="panel" id="answer"><div class="sec-head"><h2>The answer</h2></div><div class="prose">
+    <p class="big">An agent that works the night shift, and a scorecard that says how good it is.</p>
+    <div class="pair">
+      <div class="card"><h3>The watchman</h3><p>An AI model (Qwen) that looks at the market every 6 hours while
+      it is closed, chooses to buy, sell or stay out, and writes down why. Hard limits it cannot override keep it from
+      betting too much.</p></div>
+      <div class="card"><h3>The proving ground</h3><p>The same agent, replayed over 55 past nights and marked
+      against three fixed rules: do nothing, always follow the move, always bet against it. The results are published,
+      including the runs where it lost.</p></div>
+    </div></div></section>
+  <section class="panel" id="cycle"><div class="sec-head"><h2>One decision, step by step</h2></div><div class="prose">
+    <ol>
+      <li><b>Sense.</b> For each of ten stocks (NVDA, TSLA, AAPL, MSFT, AMZN, GOOGL, META, SPY, QQQ, COIN) it reads how far the price has moved since the
+      market closed, and compares that with the size of that stock's normal day. It also reads Bitcoin's move, whether
+      the company has just reported earnings, and recent headlines.</li>
+      <li><b>Decide.</b> Qwen answers with a target for each stock and a one-sentence reason. Staying out is a valid
+      answer, and it is the usual one.</li>
+      <li><b>Risk layer.</b> Plain code checks the answer against the rule book below and cuts or blocks anything
+      outside it. Every block is logged.</li>
+      <li><b>Execute.</b> What survives is filled in a paper account at Bitget prices, with fees and slippage, and
+      placed as a real order on Bitget's demo exchange, so there is an order number to check.</li>
+      <li><b>Flatten.</b> 15 minutes after the market opens, everything is closed and a
+      short morning note is written for the human.</li>
+    </ol></div></section>
+  <section class="panel" id="rules"><div class="sec-head"><h2>The rule book</h2></div><div class="prose">
+    <p>These limits are ordinary code, not instructions to the AI. The model cannot talk its way past them.</p>
+    <dl class="facts">
+      <div class="card"><dt class="label">Per stock</dt><dd><b>20%</b>of the account, at most</dd></div>
+      <div class="card"><dt class="label">All positions</dt><dd><b>60%</b>of the account in total, at most</dd></div>
+      <div class="card"><dt class="label">Position stop</dt><dd><b>−3%</b>on one stock closes it and bars it for the night</dd></div>
+      <div class="card"><dt class="label">Night stop</dt><dd><b>−2%</b>on the account closes everything until the next night</dd></div>
+      <div class="card"><dt class="label">Late entries</dt><dd><b>30 min</b>before the open, no new risk is allowed</dd></div>
+      <div class="card"><dt class="label">Costs charged</dt><dd><b>0.15%</b>per side: 0.10% fee plus 0.05% slippage</dd></div>
+    </dl></div></section>
+  <section class="panel" id="proof"><div class="sec-head"><h2>Is it any good</h2></div><div class="prose">
+    <p class="big">Over 55 replayed nights the current agent returned <b>+5.80%</b> after costs, against +3.40% for the best fixed rule and 0.00% for doing nothing.</p>
+    <p>That number needs three honest notes, and the <a href="index.html#history">live page</a> shows all of them:</p>
+    <ul>
+      <li><b>The first run lost.</b> The agent bet that big overnight moves would reverse. They mostly continued.</li>
+      <li><b>A data bug was part of the story.</b> The earnings calendar was one night early, so the agent was told
+      "no news" on the very night a company reported.</li>
+      <li><b>The gain is concentrated.</b> Almost all of it comes from four earnings nights, after one rule was added:
+      do not bet against a move on the night a company reports. That rule was written after seeing those nights, so it
+      is not yet proven on new ones.</li>
+    </ul>
+    <p>You can test this yourself. <a href="index.html#lab">Beat the agent</a> lets you build a rule with two sliders
+    and replays it over the same nights. A few rules do beat it.</p></div></section>
+  <section class="panel" id="run"><div class="sec-head"><h2>Run your own</h2></div><div class="prose">
+    <p>Watching costs nothing: open the <a href="index.html">live page</a>. To run your own copy you need to be
+    comfortable with GitHub. It takes about twenty minutes.</p>
+    <ol>
+      <li>Fork <a href="https://github.com/Milliebanned/pervigil">the repository</a> to your own GitHub account.</li>
+      <li>Get an AI key for any OpenAI-compatible model, and a Bitget demo API key if you want demo orders.</li>
+      <li>Add them as repository secrets: <code>LLM_BASE_URL</code>, <code>LLM_API_KEY</code>, <code>LLM_MODEL</code>,
+      and optionally <code>BITGET_DEMO_API_KEY</code>, <code>BITGET_DEMO_SECRET</code>, <code>BITGET_DEMO_PASSPHRASE</code>.</li>
+      <li>Enable GitHub Actions and GitHub Pages. The agent then wakes every hour, decides when a decision is due,
+      and rebuilds your page.</li>
+    </ol>
+    <p>It is plain Python 3.12 with no extra packages. The README lists the commands to replay the proving ground on
+    your own machine.</p></div></section>
+  <section class="panel" id="limits"><div class="sec-head"><h2>What it is not</h2></div><div class="prose">
+    <ul>
+      <li><b>Paper trading only.</b> No real money is at risk, and it cannot connect to anyone's live account.</li>
+      <li><b>Not a product yet.</b> There is no sign-up or one-click start. Running your own copy needs a developer.</li>
+      <li><b>A short record.</b> 55 replayed nights and a few days of live log. The replay sees prices and
+      earnings dates, not the news the live agent reads.</li>
+      <li><b>Three stocks are paper only.</b> Bitget's demo exchange does not list MSFT, SPY or QQQ, so those positions
+      exist in the paper account alone.</li>
+      <li><b>Not financial advice.</b></li>
+    </ul></div></section>
+  <footer class="panel">
+    <p class="foot-id"><svg aria-hidden="true"><use href="#logo"/></svg><span><a href="https://github.com/Milliebanned/pervigil">Code, data and logs on GitHub</a> &nbsp;·&nbsp; Built for the Bitget AI Base Camp Hackathon S2</span></p>
+    <p><strong>Paper trading only. Not financial advice.</strong></p>
+  </footer>
+</main>
+</div>
+<script>
+(function () {
+  var links = [].slice.call(document.querySelectorAll('.nav a'));
+  if (!('IntersectionObserver' in window)) return;
+  var io = new IntersectionObserver(function (es) {
+    es.forEach(function (e) {
+      if (e.isIntersecting) links.forEach(function (l) { l.classList.toggle('on', l.hash === '#' + e.target.id); });
+    });
+  }, { rootMargin: '-25% 0px -65% 0px' });
+  links.forEach(function (l) { var t = document.querySelector(l.hash); if (t) io.observe(t); });
+})();
+</script>
+</body>
+</html>

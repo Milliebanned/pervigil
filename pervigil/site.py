@@ -13,7 +13,7 @@ import re
 import time
 from datetime import datetime, timezone
 
-from . import scorecard
+from . import guide, scorecard
 from .replay import checkpoints
 from .sessions import NY, current_session, from_ms
 
@@ -488,29 +488,18 @@ def notes():
 
 # ---------- page ----------
 
-def build(now_ms=None):
-    now_ms = now_ms or int(time.time() * 1000)
-    card = scorecard.build()
-    results = {os.path.basename(p)[:-5]: json.load(open(p)) for p in glob.glob(os.path.join(scorecard.RESULTS, "*.json"))
-               if os.path.basename(p) not in ("scorecard.json", "lab.json") and "consistency_run" not in p}
-    agent = card["policies"].get(AGENT)
-    nights = agent["sessions"] if agent else 0
-    promo = (f'<div class="promo card"><span class="label">{nights} nights</span>'
-             f'<strong class="{sign(agent["total_return"])}">{pct_text(agent["total_return"])}</strong>'
-             f'<p>Scored against three fixed rules, earlier losing runs included.</p>'
-             f'<a class="btn" href="#proving">Scorecard</a></div>') if agent else ""
-    nav = "".join(f'<a{" class=\"on\"" if i == 0 else ""} href="#{k}">{v}</a>' for i, (k, v) in enumerate(NAV))
-    steps = "".join(f'<li class="step card"><h3>{t}</h3><p>{d}</p></li>' for t, d in STEPS)
-    log_head, feed = live_feed()
+def shell(title, desc, nav, side_extra, main, script, home="#top"):
+    """The frame every page shares: head, sidebar, footer."""
     icon = "data:image/svg+xml," + LOGO_SVG.replace("#", "%23").replace('"', "'")
-    page = f"""<!doctype html>
+    links = "".join(f'<a{" class=\"on\"" if i == 0 else ""} href="#{k}">{v}</a>' for i, (k, v) in enumerate(nav))
+    return f"""<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="dark light">
-<title>Pervigil · the night-shift trading agent</title>
-<meta name="description" content="Pervigil is an AI agent that trades tokenised US stocks only while the real market is closed, and publishes its scorecard.">
+<title>{title}</title>
+<meta name="description" content="{desc}">
 <link rel="icon" type="image/svg+xml" href="{icon}">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -522,17 +511,46 @@ def build(now_ms=None):
 {LOGO_SYMBOL}
 <div class="shell">
 <aside class="side panel">
-  <a class="brand" href="#top">{USE_LOGO}Pervigil</a>
-  <nav class="nav" aria-label="Sections">{nav}</nav>
-  {promo}
+  <a class="brand" href="{home}">{USE_LOGO}Pervigil</a>
+  <nav class="nav" aria-label="Sections">{links}</nav>
+  {side_extra}
   <p class="side-foot"><a href="{REPO}">Code on GitHub</a><br>Paper trading only.</p>
 </aside>
 <main>
-  {status_bar(now_ms)}
+  {main}
+  <footer class="panel">
+    <p class="foot-id">{USE_LOGO}<span><a href="{REPO}">Code, data and logs on GitHub</a> &nbsp;·&nbsp; Built for the Bitget AI Base Camp Hackathon S2</span></p>
+    <p><strong>Paper trading only. Not financial advice.</strong></p>
+  </footer>
+</main>
+</div>
+<script>
+{script}
+</script>
+</body>
+</html>
+"""
+
+
+def build(now_ms=None):
+    now_ms = now_ms or int(time.time() * 1000)
+    card = scorecard.build()
+    results = {os.path.basename(p)[:-5]: json.load(open(p)) for p in glob.glob(os.path.join(scorecard.RESULTS, "*.json"))
+               if os.path.basename(p) not in ("scorecard.json", "lab.json") and "consistency_run" not in p}
+    agent = card["policies"].get(AGENT)
+    nights = agent["sessions"] if agent else 0
+    promo = (f'<div class="promo card"><span class="label">{nights} nights</span>'
+             f'<strong class="{sign(agent["total_return"])}">{pct_text(agent["total_return"])}</strong>'
+             f'<p>Scored against three fixed rules, earlier losing runs included.</p>'
+             f'<a class="btn" href="#proving">Scorecard</a></div>') if agent else ""
+    steps = "".join(f'<li class="step card"><h3>{t}</h3><p>{d}</p></li>' for t, d in STEPS)
+    log_head, feed = live_feed()
+    main = f"""{status_bar(now_ms)}
   <section class="panel hero" id="top">
     <div class="hero-id">{USE_LOGO}<h1>Pervigil</h1></div>
     <p class="motto" lang="la">Vigilat dum dormis<span lang="en">It keeps watch while you sleep.</span></p>
     <p class="lede">An AI agent that trades ten big US stocks on Bitget only while the real market is closed, explains every decision in one sentence, and is flat again shortly after the opening bell.</p>
+    <p class="cta"><a class="btn" href="guide.html">Read the docs</a><a class="btn ghost" href="#lab">Beat the agent</a></p>
     {week_strip(now_ms)}
   </section>
   <section class="panel" id="numbers">
@@ -562,23 +580,15 @@ def build(now_ms=None):
   <section class="panel" id="notes">
     <div class="sec-head"><h2>Morning notes</h2><p>What the agent leaves for whoever was asleep. One per night.</p></div>
     {notes()}
-  </section>
-  <footer class="panel">
-    <p class="foot-id">{USE_LOGO}<span><a href="{REPO}">Code, data and logs on GitHub</a> &nbsp;·&nbsp; Built for the Bitget AI Base Camp Hackathon S2</span></p>
-    <p><strong>Paper trading only. Not financial advice.</strong></p>
-  </footer>
-</main>
-</div>
-<script>
-{NAV_JS}
-{LAB_JS}
-</script>
-</body>
-</html>
-"""
+  </section>"""
+    side = f'{promo}<a class="btn ghost docs" href="guide.html">Read the docs</a>'
+    page = shell("Pervigil · the night-shift trading agent",
+                 "Pervigil is an AI agent that trades tokenised US stocks only while the real market is closed, "
+                 "and publishes its scorecard.", NAV, side, main, NAV_JS + "\n" + LAB_JS)
     os.makedirs(DOCS, exist_ok=True)
     open(os.path.join(DOCS, "index.html"), "w").write(page)
     open(os.path.join(DOCS, "logo.svg"), "w").write(LOGO_SVG + "\n")
+    open(os.path.join(DOCS, "guide.html"), "w").write(guide.build(card))
     return os.path.join(DOCS, "index.html")
 
 

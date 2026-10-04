@@ -293,6 +293,34 @@ footer strong { color: var(--text); font-weight: 600; }
 .lab-note { margin-top: 14px; font-size: 0.8rem; color: var(--muted); max-width: 78ch; }
 @media (max-width: 900px) { .lab { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 640px) { .lab-controls, .lab-out { padding: 16px; } .lab-stats { grid-template-columns: 1fr; } .seg label { flex: 1 1 100%; } }
+
+/* ---------- Buttons under the hero, and the docs page ---------- */
+.cta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 26px; }
+.btn.ghost { background: var(--card); color: var(--text); border: 1px solid var(--line-2); }
+.side .btn.docs { width: 100%; }
+.prose { max-width: 72ch; }
+.prose p { margin-top: 12px; font-size: 0.98rem; line-height: 1.65; text-wrap: pretty; }
+.prose p:first-child { margin-top: 0; }
+.prose p.big { font-size: clamp(1.02rem, 1.6vw, 1.15rem); }
+.prose ul, .prose ol { margin-top: 12px; display: grid; gap: 8px; }
+.prose li { position: relative; padding-left: 22px; font-size: 0.98rem; line-height: 1.6; }
+.prose ul li::before { content: ""; position: absolute; left: 4px; top: 0.65em; width: 7px; height: 7px; border-radius: 2px; background: var(--accent-t); }
+.prose ol { counter-reset: n; }
+.prose ol li { counter-increment: n; padding-left: 34px; }
+.prose ol li::before { content: counter(n); position: absolute; left: 0; top: 0.1em; width: 22px; height: 22px; border-radius: 6px; background: var(--accent); color: #fff; font: 400 0.55rem/22px var(--display); text-align: center; }
+.prose b, .prose strong { font-weight: 700; }
+.prose a { color: var(--accent-t); }
+.prose code { font: 600 0.85em ui-monospace, SFMono-Regular, Menlo, monospace; padding: 2px 6px; border-radius: 5px; background: var(--card); border: 1px solid var(--line); overflow-wrap: anywhere; }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 18px; }
+.pair .card { padding: 20px; }
+.pair h3 { font: 400 0.72rem/1.3 var(--display); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 10px; }
+.pair p { font-size: 0.9rem; color: var(--muted); line-height: 1.55; }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; margin-top: 18px; }
+.facts div { padding: 16px; }
+.facts dt { margin-bottom: 8px; }
+.facts dd { font-size: 0.9rem; line-height: 1.5; }
+.facts dd b { font-size: 1.25rem; font-variant-numeric: tabular-nums; display: block; margin-bottom: 2px; }
+@media (max-width: 640px) { .pair { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
@@ -304,16 +332,17 @@ footer strong { color: var(--text); font-weight: 600; }
 <aside class="side panel">
   <a class="brand" href="#top"><svg aria-hidden="true"><use href="#logo"/></svg>Pervigil</a>
   <nav class="nav" aria-label="Sections"><a class="on" href="#top">Overview</a><a href="#numbers">Numbers</a><a href="#how">How it works</a><a href="#proving">Proving ground</a><a href="#lab">Beat the agent</a><a href="#history">How it got here</a><a href="#hardest">Hardest nights</a><a href="#log">Live log</a><a href="#notes">Morning notes</a></nav>
-  <div class="promo card"><span class="label">55 nights</span><strong class="pos">+5.80%</strong><p>Scored against three fixed rules, earlier losing runs included.</p><a class="btn" href="#proving">Scorecard</a></div>
+  <div class="promo card"><span class="label">55 nights</span><strong class="pos">+5.80%</strong><p>Scored against three fixed rules, earlier losing runs included.</p><a class="btn" href="#proving">Scorecard</a></div><a class="btn ghost docs" href="guide.html">Read the docs</a>
   <p class="side-foot"><a href="https://github.com/Milliebanned/pervigil">Code on GitHub</a><br>Paper trading only.</p>
 </aside>
 <main>
-  <div class="top panel"><p class="status"><span class="pill"><i aria-hidden="true"></i>On watch</span><span>US market closed, next decision in 4h · updated 13:26 ET, Sun 4 Oct</span></p><label class="theme"><input type="checkbox" id="theme-switch" aria-label="Use light theme"><span class="label">Light</span></label></div>
+  <div class="top panel"><p class="status"><span class="pill"><i aria-hidden="true"></i>On watch</span><span>US market closed, next decision in 3h · updated 14:24 ET, Sun 4 Oct</span></p><label class="theme"><input type="checkbox" id="theme-switch" aria-label="Use light theme"><span class="label">Light</span></label></div>
   <section class="panel hero" id="top">
     <div class="hero-id"><svg aria-hidden="true"><use href="#logo"/></svg><h1>Pervigil</h1></div>
     <p class="motto" lang="la">Vigilat dum dormis<span lang="en">It keeps watch while you sleep.</span></p>
     <p class="lede">An AI agent that trades ten big US stocks on Bitget only while the real market is closed, explains every decision in one sentence, and is flat again shortly after the opening bell.</p>
-    <div class="week card"><svg viewBox="0 0 168 10" preserveAspectRatio="none" role="img" aria-label="One week, hour by hour. The US market is open for five short sessions; the rest of the week it is closed."><rect class="closed" width="168" height="10"/><rect class="open" x="9.5" width="6.5" height="10"/><rect class="open" x="33.5" width="6.5" height="10"/><rect class="open" x="57.5" width="6.5" height="10"/><rect class="open" x="81.5" width="6.5" height="10"/><rect class="open" x="105.5" width="6.5" height="10"/><line class="now" x1="157.43" x2="157.43" y1="-3" y2="13"/></svg><ol class="label" aria-hidden="true"><li>Mon</li><li>Tue</li><li>Wed</li><li>Thu</li><li>Fri</li><li>Sat</li><li>Sun</li></ol><p>Purple is when the US stock market is open: 32.5 hours of 168. <b>The other 80% of the week is Pervigil's watch.</b> The green marker is now.</p></div>
+    <p class="cta"><a class="btn" href="guide.html">Read the docs</a><a class="btn ghost" href="#lab">Beat the agent</a></p>
+    <div class="week card"><svg viewBox="0 0 168 10" preserveAspectRatio="none" role="img" aria-label="One week, hour by hour. The US market is open for five short sessions; the rest of the week it is closed."><rect class="closed" width="168" height="10"/><rect class="open" x="9.5" width="6.5" height="10"/><rect class="open" x="33.5" width="6.5" height="10"/><rect class="open" x="57.5" width="6.5" height="10"/><rect class="open" x="81.5" width="6.5" height="10"/><rect class="open" x="105.5" width="6.5" height="10"/><line class="now" x1="158.40" x2="158.40" y1="-3" y2="13"/></svg><ol class="label" aria-hidden="true"><li>Mon</li><li>Tue</li><li>Wed</li><li>Thu</li><li>Fri</li><li>Sat</li><li>Sun</li></ol><p>Purple is when the US stock market is open: 32.5 hours of 168. <b>The other 80% of the week is Pervigil's watch.</b> The green marker is now.</p></div>
   </section>
   <section class="panel" id="numbers">
     <div class="sec-head"><h2>55 nights, replayed</h2></div>
