@@ -1,325 +1,462 @@
 """Build the public page (docs/index.html, served by GitHub Pages) from the scorecard and live log.
 
     python -m pervigil.site
+
+The look lives in page.css; this file only fills it with numbers.
 """
 import glob
 import html
 import json
 import math
 import os
+import re
 import time
+from datetime import datetime, timezone
 
 from . import scorecard
+from .replay import checkpoints
 from .sessions import NY, current_session, from_ms
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DOCS = os.path.join(ROOT, "docs")
 LOG = os.path.join(ROOT, "logs", "paper_log.jsonl")
 NOTES = os.path.join(ROOT, "logs", "notes")
+ARCHIVE = os.path.join(scorecard.RESULTS, "archive")
+CSS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "page.css")
 REPO = "https://github.com/Milliebanned/pervigil"
-LABEL = {"do_nothing": "Do nothing", "always_fade": "Always fade", "always_follow": "Always follow",
-         "agent_run0": "Pervigil agent"}
-# Chart colour follows the entity, in a fixed order (validated categorical slots 1-3, light / dark).
-SERIES = [("agent_run0", "s1"), ("always_follow", "s2"), ("always_fade", "s3")]
+AGENT = "agent_run0"
+FEED_LIMIT = 30
 
-# The mark: an eye that stays open, with a crescent moon for an iris.
-LOGO = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Pervigil">
-<defs><mask id="m"><rect width="64" height="64" fill="#fff"/><circle cx="37.5" cy="27.5" r="9.5" fill="#000"/></mask></defs>
-<path d="M4 32 Q32 5 60 32 Q32 59 4 32Z" fill="none" stroke="{ink}" stroke-width="3.5" stroke-linejoin="round"/>
-<circle cx="32" cy="32" r="12" fill="{accent}" mask="url(#m)"/></svg>"""
+# policy -> (name, what it does, css suffix). Drawn in this order, so the agent's line sits on top.
+POLICY = {
+    "do_nothing": ("Do nothing", "stay in cash", "none"),
+    "always_follow": ("Always follow", "bet a big overnight move continues", "follow"),
+    "always_fade": ("Always fade", "bet a big overnight move reverses", "fade"),
+    AGENT: ("Pervigil", "the agent", "agent"),
+}
 
-CSS = """
-:root{--bg:#f6f4ee;--card:#fcfcfb;--ink:#14161c;--mute:#565b66;--line:#dedbd1;--accent:#b7791f;--good:#0a7d4f;--bad:#b3261e;
---s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--open:#cfcabb;--hero:#10141f;--hero-ink:#f3efe4;--hero-mute:#a9adb8;--hero-line:#2a3040;--lamp:#e9b44c}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0c0f17;--card:#1a1a19;--ink:#eef0f3;--mute:#a3a8b3;--line:#2c2f36;
---accent:#e9b44c;--good:#4cc38a;--bad:#f2867d;--s1:#3987e5;--s2:#d95926;--s3:#199e70;--open:#4a4f5c}}
-:root[data-theme="dark"]{--bg:#0c0f17;--card:#1a1a19;--ink:#eef0f3;--mute:#a3a8b3;--line:#2c2f36;
---accent:#e9b44c;--good:#4cc38a;--bad:#f2867d;--s1:#3987e5;--s2:#d95926;--s3:#199e70;--open:#4a4f5c}
-*{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
-body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif}
-.wrap{max-width:1000px;margin:0 auto;padding:0 16px}
-.serif{font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif}
-header{background:var(--hero);color:var(--hero-ink);padding:44px 0 36px}
-.brand{display:flex;align-items:center;gap:16px}.brand svg{width:64px;height:64px;flex:none}
-.brand h1{font-size:44px;line-height:1;margin:0;letter-spacing:.01em;font-weight:600}
-.motto{font-style:italic;font-size:19px;color:var(--lamp);margin:6px 0 0}.motto span{font-style:normal;color:var(--hero-mute);font-size:14px;margin-left:8px}
-.lede{max-width:680px;font-size:18px;margin:22px 0 18px;color:var(--hero-ink)}
-.pill{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--hero-line);border-radius:999px;padding:5px 14px;font-size:14px;color:var(--hero-ink)}
-.dot{width:9px;height:9px;border-radius:50%;background:var(--lamp)}.dot.off{background:transparent;border:2px solid var(--hero-mute)}
-.week{margin-top:26px}.week .bar{display:flex;height:14px;border-radius:4px;overflow:hidden;gap:2px}
-.week .bar i{display:block;height:100%}.week .c{background:var(--lamp)}.week .o{background:#4a5163}
-.week .days{display:grid;grid-template-columns:repeat(7,1fr);font-size:12px;color:var(--hero-mute);margin-top:5px}
-.week .key{font-size:13px;color:var(--hero-mute);margin-top:8px}.sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin:0 5px 0 12px;vertical-align:baseline}
-.week .key .sw:first-child{margin-left:0}
-main{padding:8px 0 72px}h2{font-size:24px;margin:44px 0 6px;font-weight:600}
-p{margin:8px 0}.sub{color:var(--mute);font-size:15px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px;margin:14px 0}
-.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:24px}
-.tile{margin:0}.tile b{display:block;font-size:26px;font-variant-numeric:tabular-nums;line-height:1.2}.tile span{color:var(--mute);font-size:13px}
-.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;counter-reset:s}
-.step{margin:0;font-size:14px}.step b{display:block;font-size:16px}.step:before{counter-increment:s;content:counter(s);display:block;color:var(--accent);font:600 22px/1 "Iowan Old Style",Georgia,serif;margin-bottom:6px}
-.scroll{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
-th,td{text-align:right;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}th:first-child,td:first-child{text-align:left}
-tr:last-child td{border-bottom:0}th{color:var(--mute);font-weight:600}.pos{color:var(--good)}.neg{color:var(--bad)}.agent td{font-weight:650}
-.legend{display:flex;flex-wrap:wrap;gap:4px 18px;font-size:14px;margin-bottom:6px}.legend i{display:inline-block;width:14px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
-.chart{position:relative;overflow-x:auto}.chart svg{display:block;width:100%;min-width:640px;height:auto}.chart text{fill:var(--mute);font-size:12px}.chart .end{fill:var(--ink);font-size:13px}
-.grid{stroke:var(--line);stroke-width:1}.zero{stroke:var(--mute);stroke-width:1}.cross{stroke:var(--mute);stroke-width:1;stroke-dasharray:3 3;visibility:hidden}
-.tip{position:absolute;pointer-events:none;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;
-box-shadow:0 4px 14px rgba(0,0,0,.18);visibility:hidden;white-space:nowrap;font-variant-numeric:tabular-nums}.tip i{display:inline-block;width:10px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
-.log{font-size:14px;padding:12px 16px;margin:8px 0}.log .t{color:var(--mute);font-size:12px}
-.tag{display:inline-block;border:1px solid var(--line);border-radius:6px;padding:0 7px;font-size:12px;margin-right:6px;color:var(--mute)}
-pre{white-space:pre-wrap;font:15px/1.6 inherit;margin:0}a{color:var(--accent)}
-footer{border-top:1px solid var(--line);padding:22px 0 40px;color:var(--mute);font-size:14px}
-@media (max-width:560px){.motto span{display:block;margin:2px 0 0}.brand h1{font-size:34px}.brand svg{width:48px;height:48px}.lede{font-size:16px}}
-"""
+LOGO_SVG = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" role="img" aria-label="Pervigil">'
+            '<rect width="48" height="48" rx="12" fill="#5a58f2"/><g fill="#ffffff"><path d="M6 24A20 20 0 0 1 42 24A20 20 0 0 1 6 24Z"/></g>'
+            '<g fill="#5a58f2"><circle cx="24" cy="24" r="8"/></g><g fill="#ffffff"><circle cx="26.6" cy="22.4" r="6.4"/></g>'
+            '<g fill="#3ff0a6"><circle cx="26.6" cy="22.4" r="2.7"/></g></svg>')
+# The same mark as a reusable symbol whose colours follow the theme.
+LOGO_SYMBOL = """<svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="logo" viewBox="0 0 48 48">
+<rect class="logo-bg" width="48" height="48" rx="12"/><g class="logo-fg"><path d="M6 24A20 20 0 0 1 42 24A20 20 0 0 1 6 24Z"/></g>
+<g class="logo-bg"><circle cx="24" cy="24" r="8"/></g><g class="logo-fg"><circle cx="26.6" cy="22.4" r="6.4"/></g>
+<g class="logo-dot"><circle cx="26.6" cy="22.4" r="2.7"/></g></symbol></svg>"""
+USE_LOGO = '<svg aria-hidden="true"><use href="#logo"/></svg>'
 
-HOVER_JS = """
-(function(){var c=document.getElementById('chart');if(!c)return;var d=JSON.parse(document.getElementById('chart-data').textContent);
-var svg=c.querySelector('svg'),cross=c.querySelector('.cross'),tip=c.querySelector('.tip');
-function fmt(v){return (v>=0?'+':'')+(v*100).toFixed(2)+'%'}
-function move(ev){var r=svg.getBoundingClientRect(),k=d.w/r.width,x=((ev.touches?ev.touches[0].clientX:ev.clientX)-r.left)*k;
-var i=Math.round((x-d.l)/(d.pw)*(d.n-1));i=Math.max(0,Math.min(d.n-1,i));var px=d.l+(d.n>1?i/(d.n-1):0)*d.pw;
-cross.setAttribute('x1',px);cross.setAttribute('x2',px);cross.style.visibility='visible';
-var h='<div style="color:var(--mute)">'+d.dates[i]+' open</div>';d.series.forEach(function(s){h+='<div><i style="background:var(--'+s.c+')"></i>'+s.name+' <b>'+fmt(s.v[i])+'</b></div>'});
-tip.innerHTML=h;tip.style.visibility='visible';var left=px/k+12;if(left+tip.offsetWidth>r.width)left=px/k-tip.offsetWidth-12;tip.style.left=Math.max(0,left)+'px';tip.style.top='8px'}
-function out(){cross.style.visibility='hidden';tip.style.visibility='hidden'}
-svg.addEventListener('mousemove',move);svg.addEventListener('touchstart',move,{passive:true});svg.addEventListener('touchmove',move,{passive:true});svg.addEventListener('mouseleave',out)})();
-"""
+NAV = [("top", "Overview"), ("numbers", "Numbers"), ("how", "How it works"), ("proving", "Proving ground"),
+       ("history", "How it got here"), ("hardest", "Hardest nights"), ("log", "Live log"), ("notes", "Morning notes")]
+
+STEPS = [
+    ("Sense", "Each stock's move since the close, sized against its normal day, plus Bitcoin, earnings and news."),
+    ("Decide", "Qwen sets a target per stock with a one-sentence reason. Staying out is allowed."),
+    ("Risk layer", "Hard limits it cannot override: 20% per stock, 60% in total, stop-losses, no late entries."),
+    ("Execute", "Paper fills at Bitget prices with fees and slippage, mirrored as orders on Bitget's demo exchange."),
+    ("Flatten", "Everything is closed 15 minutes after the open, and a morning note is written."),
+]
+
+# Earlier runs kept in results/archive: (scorecard file or None for the current one, label, title, what changed).
+STAGES = [
+    ("scorecard_calendar_bug.json", "Run 1", "First run",
+     "The agent as first written. It bet that big overnight moves would reverse, and finished behind doing nothing."),
+    ("scorecard_calendar_fixed_no_desk_note.json", "Run 2", "After fixing a data bug",
+     "The earnings calendar was one night early, so on the night a company reported, the agent was told there was "
+     "no news. Fixed, with no change to its instructions."),
+    (None, "Run 3 · current", "After adding one rule",
+     "On a night a company has just reported earnings, do not bet against the move. The whole gain comes from four "
+     "earnings nights, and the rule was written after seeing them, so it is not yet proven on new nights."),
+]
+
+NAV_JS = """(function () {
+  var links = [].slice.call(document.querySelectorAll('.nav a'));
+  if (!('IntersectionObserver' in window)) return;
+  var io = new IntersectionObserver(function (es) {
+    es.forEach(function (e) {
+      if (e.isIntersecting) links.forEach(function (l) { l.classList.toggle('on', l.hash === '#' + e.target.id); });
+    });
+  }, { rootMargin: '-25% 0px -65% 0px' });
+  links.forEach(function (l) { var t = document.querySelector(l.hash); if (t) io.observe(t); });
+})();"""
 
 
 def e(s):
     return html.escape(str(s))
 
 
-def pct(x, signed=True):
-    if x is None:
-        return "-"
-    s = f"{x:+.2%}" if signed else f"{x:.2%}"
-    return f"<span class='{'pos' if x > 0 else 'neg' if x < 0 else ''}'>{s}</span>"
+def sign(x):
+    return "pos" if x > 0 else "neg" if x < 0 else "flat"
 
 
-def name(n):
-    if n in LABEL:
-        return LABEL[n]
-    if n.startswith("agent_run"):
-        return f"Pervigil agent, pass {int(n[9:]) + 1}"
-    return n
+def pct_text(x, digits=2):
+    if abs(x) < 0.5 * 10 ** -(digits + 2):
+        return f"{0:.{digits}%}"
+    return f"{x:+.{digits}%}".replace("-", "−")
 
 
-def week_strip():
-    """One week, Monday to Sunday in New York time: 32.5 hours open, 135.5 closed."""
-    segs = []
-    for day in range(7):
-        if day < 5:
-            segs += [("c", 9.5), ("o", 6.5), ("c", 8.0)]
-        else:
-            segs.append(("c", 24.0))
-    merged = []
-    for k, h in segs:
-        if merged and merged[-1][0] == k:
-            merged[-1][1] += h
-        else:
-            merged.append([k, h])
-    bar = "".join(f"<i class='{k}' style='flex:{h}'></i>" for k, h in merged)
-    days = "".join(f"<span>{d}</span>" for d in ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"])
-    return (f"<div class='week'><div class='bar' role='img' aria-label='US market open 32.5 of 168 hours a week'>{bar}</div>"
-            f"<div class='days'>{days}</div><div class='key'><span class='sw' style='background:#4a5163'></span>US market open, 32.5 h"
-            f"<span class='sw' style='background:var(--lamp)'></span>Closed, 135.5 h (81% of the week): Pervigil's watch</div></div>")
+def pct(x):
+    return f'<span class="num {sign(x)}">{pct_text(x)}</span>' if x is not None else '<span class="num flat">—</span>'
 
 
-def status_pill(now_ms):
+def ratio(x):
+    return f"{x:.2f}".replace("-", "−")
+
+
+def day(d):
+    return f"{d:%a} {d.day} {d:%b}"
+
+
+# ---------- status and hero ----------
+
+def status_bar(now_ms):
     s = current_session(now_ms)
-    asof = from_ms(now_ms).strftime("%d %b %H:%M UTC")
     if s is None:
-        return f"<span class='pill'><span class='dot off'></span>Off duty: US market is open · as of {asof}</span>"
-    opens = from_ms(s.open_ms).astimezone(NY).strftime("%a %d %b, 09:30 New York")
-    return f"<span class='pill'><span class='dot'></span>On watch: {s.kind} window, until {opens} · as of {asof}</span>"
+        cls, pill, line = "status off", "Off duty", "US market open"
+    else:
+        ahead = [c for c in checkpoints(s) if c > now_ms]
+        nxt = f"next decision in {max(1, math.ceil((ahead[0] - now_ms) / 3_600_000))}h" if ahead \
+            else "last decision made, flat 15 minutes after the open"
+        cls, pill, line = "status", "On watch", f"US market closed, {nxt}"
+    asof = from_ms(now_ms).astimezone(NY)
+    return (f'<div class="top panel"><p class="{cls}"><span class="pill"><i aria-hidden="true"></i>{pill}</span>'
+            f'<span>{line} · updated {asof:%H:%M} ET, {day(asof)}</span></p>'
+            f'<label class="theme"><input type="checkbox" id="theme-switch" aria-label="Use light theme">'
+            f'<span class="label">Light</span></label></div>')
 
 
-def equity_chart(results):
-    present = [(k, c) for k, c in SERIES if k in results]
-    if not present:
+def week_strip(now_ms):
+    """One week, hour by hour, Monday to Sunday in New York time: 32.5 hours open of 168."""
+    local = from_ms(now_ms).astimezone(NY)
+    now = local.weekday() * 24 + local.hour + local.minute / 60
+    opens = "".join(f'<rect class="open" x="{d * 24 + 9.5}" width="6.5" height="10"/>' for d in range(5))
+    days = "".join(f"<li>{d}</li>" for d in ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"))
+    return (f'<div class="week card"><svg viewBox="0 0 168 10" preserveAspectRatio="none" role="img" aria-label="One week, '
+            f'hour by hour. The US market is open for five short sessions; the rest of the week it is closed.">'
+            f'<rect class="closed" width="168" height="10"/>{opens}<line class="now" x1="{now:.2f}" x2="{now:.2f}" y1="-3" y2="13"/></svg>'
+            f'<ol class="label" aria-hidden="true">{days}</ol>'
+            f"<p>Purple is when the US stock market is open: 32.5 hours of 168. <b>The other 80% of the week is "
+            f"Pervigil's watch.</b> The green marker is now.</p></div>")
+
+
+# ---------- headline numbers ----------
+
+def wins(m):
+    return round((m["win_rate"] or 0) * m["sessions_traded"])
+
+
+def figures(agent):
+    if not agent:
+        return '<p class="figures-note">The agent replay has not finished yet; the fixed rules are below.</p>'
+    r, dd = agent["total_return"], agent["max_drawdown"]
+    out_nights = agent["sessions"] - agent["sessions_traded"]
+    big_pct = lambda x: f'<dd class="big {sign(x)}">{pct_text(x)[:-1]}<small>%</small></dd>'
+    cards = [
+        ("Return", big_pct(r), "after fees and slippage"),
+        ("Sharpe", f'<dd class="big">{ratio(agent["sharpe"])}</dd>', "return per unit of risk, annualised"),
+        ("Worst drawdown", big_pct(dd), "deepest fall from a peak"),
+        ("Winning nights", f'<dd class="big">{wins(agent)}<small>of {agent["sessions_traded"]}</small></dd>',
+         f"it stayed out the other {out_nights}"),
+        ("Risk-rule blocks", f'<dd class="big">{agent["risk_violations"]}<small>of {agent["proposals"]}</small></dd>',
+         "proposals the hard limits overruled"),
+    ]
+    body = "".join(f'<div class="figure card"><dt class="label">{k}</dt>{v}<dd class="sub">{s}</dd></div>' for k, v, s in cards)
+    return (f'<dl class="figures">{body}</dl><p class="figures-note">A replay of {agent["sessions"]} past nights and weekends '
+            f"on real Bitget prices. Paper trading: no real money was at risk.</p>")
+
+
+# ---------- proving ground ----------
+
+def curves(results):
+    """policy -> cumulative return after each night, starting at 0."""
+    out = {}
+    for k in POLICY:
+        if k in results:
+            eq, vals = 1.0, [0.0]
+            for s in results[k]["sessions"]:
+                eq *= 1 + s["ret"]
+                vals.append(eq - 1)
+            out[k] = vals
+    return out
+
+
+def chart(results):
+    series = curves(results)
+    if not series:
         return ""
-    dates = [s["session"] for s in results[present[0][0]]["sessions"]]
-    series = []
-    for k, c in present:
-        eq, vals = 1.0, []
-        for s in results[k]["sessions"]:
-            eq *= 1 + s["ret"]
-            vals.append(eq - 1)
-        series.append({"key": k, "name": LABEL[k], "c": c, "v": vals})
-    n = len(dates)
-    W, H, L, R, T, B = 900, 320, 52, 150, 14, 30
-    pw, ph = W - L - R, H - T - B
-    lo = min(0.0, min(min(s["v"]) for s in series))
-    hi = max(0.0, max(max(s["v"]) for s in series))
-    step = next(st for st in (0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5) if (hi - lo) / st <= 6)
-    lo, hi = math.floor(lo / step) * step, math.ceil(hi / step) * step
-    X = lambda i: L + (i / (n - 1) if n > 1 else 0) * pw
-    Y = lambda v: T + (hi - v) / (hi - lo) * ph
-    parts = []
-    v = lo
-    while v <= hi + 1e-9:
-        cls = "zero" if abs(v) < 1e-9 else "grid"
-        parts.append(f"<line class='{cls}' x1='{L}' x2='{L + pw}' y1='{Y(v):.1f}' y2='{Y(v):.1f}'/>"
-                     f"<text x='{L - 8}' y='{Y(v) + 4:.1f}' text-anchor='end'>{v:+.0%}</text>" if step >= 0.01 else
-                     f"<line class='{cls}' x1='{L}' x2='{L + pw}' y1='{Y(v):.1f}' y2='{Y(v):.1f}'/>"
-                     f"<text x='{L - 8}' y='{Y(v) + 4:.1f}' text-anchor='end'>{v:+.1%}</text>")
-        v += step
-    for i in sorted({0, n // 3, 2 * n // 3, n - 1}):
-        anchor = "start" if i == 0 else "end" if i == n - 1 else "middle"
-        parts.append(f"<text x='{X(i):.1f}' y='{H - 8}' text-anchor='{anchor}'>{e(dates[i][5:])}</text>")
-    for s in series:
-        pts = " ".join(f"{X(i):.1f},{Y(val):.1f}" for i, val in enumerate(s["v"]))
-        parts.append(f"<polyline points='{pts}' fill='none' stroke='var(--{s['c']})' stroke-width='2' "
-                     f"stroke-linejoin='round' stroke-linecap='round'/>")
-    # Direct labels at the line ends, nudged apart so they never overlap.
-    ends = sorted(series, key=lambda s: Y(s["v"][-1]))
-    ys = []
-    for s in ends:
-        y = Y(s["v"][-1])
-        if ys and y - ys[-1] < 16:
-            y = ys[-1] + 16
-        ys.append(y)
-        parts.append(f"<circle cx='{X(n - 1):.1f}' cy='{Y(s['v'][-1]):.1f}' r='4' fill='var(--{s['c']})' stroke='var(--card)' stroke-width='2'/>"
-                     f"<text class='end' x='{X(n - 1) + 10:.1f}' y='{y + 4:.1f}'>{e(s['name'])} {s['v'][-1]:+.1%}</text>")
-    parts.append(f"<line class='cross' y1='{T}' y2='{T + ph}'/>")
-    legend = "".join(f"<span><i style='background:var(--{s['c']})'></i>{e(s['name'])}</span>" for s in series)
-    data = {"w": W, "l": L, "pw": pw, "n": n, "dates": dates,
-            "series": [{"name": s["name"], "c": s["c"], "v": [round(x, 5) for x in s["v"]]} for s in series]}
-    return (f"<div class='card'><div class='legend'>{legend}</div><div class='chart' id='chart'>"
-            f"<svg viewBox='0 0 {W} {H}' role='img' aria-label='Cumulative return by policy across replayed nights'>{''.join(parts)}</svg>"
-            f"<div class='tip'></div></div><p class='sub'>Cumulative return after costs, night by night. "
-            f"The zero line is doing nothing. Exact figures are in the table below.</p></div>"
-            f"<script type='application/json' id='chart-data'>{json.dumps(data)}</script>")
+    n = len(next(iter(series.values()))) - 1
+    lo = min(min(v) for v in series.values())
+    hi = max(max(v) for v in series.values())
+    step = next(st for st in (0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5) if (hi - lo) / st <= 7)
+    lo, hi = math.floor(lo / step - 1e-9) * step, math.ceil(hi / step + 1e-9) * step
+    frac = lambda v: (hi - v) / (hi - lo)
+    W, H = n * 10, 200
+    ticks = [lo + i * step for i in range(round((hi - lo) / step) + 1)]
+    digits = 0 if step >= 0.01 else 1
+    ylab = "".join(f'<span style="top:{frac(v) * 100:.2f}%">{pct_text(v, digits)}</span>' for v in ticks)
+    grid = "".join(f'<line class="{"zero" if abs(v) < 1e-9 else "grid"}" x1="0" x2="{W}" y1="{frac(v) * H:.1f}" y2="{frac(v) * H:.1f}"/>'
+                   for v in ticks)
+    lines = "".join(f'<polyline class="ln ln-{POLICY[k][2]}" points="'
+                    + " ".join(f"{i * 10},{frac(v) * H:.1f}" for i, v in enumerate(vals)) + '"/>'
+                    for k, vals in series.items())
+    marks = [i for i in range(10, n, 10) if n - i >= 5]
+    xlab = '<span style="left:0%">Start</span>' + "".join(f'<span style="left:{i / n * 100:.2f}%">{i}</span>' for i in marks) \
+        + f'<span style="left:100%">Night {n}</span>'
+    order = sorted(series, key=lambda k: -series[k][-1])
+    legend = "".join(f'<li><span class="key key-{POLICY[k][2]}"></span>{POLICY[k][0]} {pct(series[k][-1])}</li>' for k in order)
+    return (f'<div class="chart-card card"><ul class="legend">{legend}</ul><div class="chart">'
+            f'<div class="y" aria-hidden="true">{ylab}</div>'
+            f'<svg viewBox="0 0 {W} {H}" preserveAspectRatio="none" role="img" aria-label="Account value over {n} nights for '
+            f'the agent and three fixed rules. The figures are in the table below.">{grid}{lines}</svg>'
+            f'<div class="x" aria-hidden="true">{xlab}</div></div>'
+            f'<p class="chart-cap">Account value after each night, as a change from the starting balance, after costs.</p></div>')
 
 
 def policy_table(card):
-    rows = ["<tr><th>Policy</th><th>Nights</th><th>Nights traded</th><th>Return</th><th>Sharpe</th><th>Sortino</th>"
-            "<th>Max drawdown</th><th>Win rate</th><th>Worst night</th><th>Risk blocks</th></tr>"]
-    order = sorted(card["policies"], key=lambda n: (not n.startswith("agent"), n))
-    for n in order:
-        m = card["policies"][n]
-        win = f"{m['win_rate']:.0%}" if m["win_rate"] is not None else "-"
-        rows.append(f"<tr class='{'agent' if n.startswith('agent') else ''}'><td>{e(name(n))}</td><td>{m['sessions']}</td>"
-                    f"<td>{m['sessions_traded']}</td><td>{pct(m['total_return'])}</td><td>{m['sharpe']:.2f}</td>"
-                    f"<td>{m['sortino']:.2f}</td><td>{pct(m['max_drawdown'])}</td><td>{win}</td>"
-                    f"<td>{pct(m['worst_session'])}</td><td>{m['risk_violations']} of {m['proposals']}</td></tr>")
-    return "<div class='card scroll'><table>" + "".join(rows) + "</table></div>"
+    pol = {k: m for k, m in card["policies"].items() if k in POLICY}
+    rows = []
+    for k in sorted(pol, key=lambda k: -pol[k]["total_return"]):
+        m = pol[k]
+        name, what, css = POLICY[k]
+        traded = m["sessions_traded"]
+        cells = [("Return", pct(m["total_return"])),
+                 ("Sharpe", f'<span class="num {sign(m["sharpe"])}">{ratio(m["sharpe"])}</span>' if traded else pct(None)),
+                 ("Max drawdown", pct(m["max_drawdown"])),
+                 ("Winning nights", f'<span class="num">{wins(m)} of {traded}</span>' if traded else pct(None)),
+                 ("Worst night", pct(m["worst_session"])),
+                 ("Risk-rule blocks", f'<span class="num">{m["risk_violations"]} of {m["proposals"]}</span>' if m["proposals"] else pct(None))]
+        rows.append(f'<tr class="row-{css}"><th scope="row"><span class="key key-{css}" aria-hidden="true"></span>{name}'
+                    f"<small>{what}</small></th>" + "".join(f'<td data-label="{h}">{v}</td>' for h, v in cells) + "</tr>")
+    nights = next(iter(pol.values()))["sessions"] if pol else 0
+    head = "".join(f'<th scope="col">{h}</th>' for h in
+                   ("Strategy", "Return", "Sharpe", "Max drawdown", "Winning nights", "Worst night", "Risk-rule blocks"))
+    return (f'<table class="tbl"><caption class="label">Scorecard, {nights} nights</caption><thead><tr>{head}</tr></thead>'
+            f'<tbody>{"".join(rows)}</tbody></table>')
 
+
+def consistency_line(card):
+    c = card.get("consistency")
+    if not c or c.get("agreement") is None:
+        return ""
+    return (f" Asked the same opening question {c['passes']} times on {c['nights_compared']} nights, it made the same call on "
+            f"{c['agreement']:.0%} of stock decisions, nearly all of them agreeing to stay out.")
+
+
+# ---------- how it got here ----------
+
+def stages(card):
+    rows = []
+    for fname, label, title, text in STAGES:
+        src = card if fname is None else None
+        if fname and os.path.exists(os.path.join(ARCHIVE, fname)):
+            src = json.load(open(os.path.join(ARCHIVE, fname)))
+        if src and AGENT in src["policies"]:
+            rows.append((label, title, text, src["policies"][AGENT]["total_return"]))
+    if len(rows) < 2:
+        return ""
+    lo, hi = min(0.0, *(r[3] for r in rows)), max(0.0, *(r[3] for r in rows))
+    at = lambda v: (v - lo) / (hi - lo) * 100 if hi > lo else 0.0
+    items, prev = [], None
+    for label, title, text, v in rows:
+        left, width = min(at(0), at(v)), abs(at(v) - at(0))
+        before = f'<span class="before num">{pct_text(prev)}</span><span class="arrow" aria-label="to">&rarr;</span>' if prev is not None else ""
+        items.append(f'<li class="stage card"><div><span class="label">{label}</span><h3>{title}</h3><p>{text}</p></div>'
+                     f'<div><div class="delta">{before}<span class="after num {sign(v)}">{pct_text(v)}</span></div>'
+                     f'<div class="track" aria-hidden="true"><i class="{"neg" if v < 0 else "pos"}-bar" '
+                     f'style="left:{left:.2f}%;width:{width:.2f}%"></i></div></div></li>')
+        prev = v
+    return (f'<section class="panel" id="history"><div class="sec-head"><h2>How it got here</h2>'
+            f"<p>The first version lost money. The earlier results stay on this page because a scorecard that only shows "
+            f'the final run is not a scorecard. Every run is in <a href="{REPO}/tree/main/results">the results folder</a>.</p></div>'
+            f'<ol class="stages">{"".join(items)}</ol></section>')
+
+
+# ---------- the hardest nights ----------
 
 def stress_table(card):
     if not card["stress"]:
-        return ""
-    cols = [k for k in card["stress"][0] if k not in ("session", "avg_abs_z")]
-    cols.sort(key=lambda n: (not n.startswith("agent"), n))
-    head = "<tr><th>Night (open date)</th><th>Average move, in normal days</th>" + "".join(f"<th>{e(name(c))}</th>" for c in cols) + "</tr>"
-    body = "".join(f"<tr><td>{e(r['session'])}</td><td>{r['avg_abs_z']:.2f}</td>" + "".join(f"<td>{pct(r.get(c))}</td>" for c in cols) + "</tr>"
-                   for r in card["stress"])
-    return "<div class='card scroll'><table>" + head + body + "</table></div>"
+        return '<p class="figures-note">No replay results yet.</p>'
+    cols = [k for k in (AGENT, "always_follow", "always_fade", "do_nothing") if k in card["stress"][0]]
+    head = '<th scope="col">Night</th><th scope="col">Size of move</th>' + "".join(f'<th scope="col">{POLICY[c][0]}</th>' for c in cols)
+    rows = []
+    for r in card["stress"]:
+        d = datetime.strptime(r["session"], "%Y-%m-%d")
+        rows.append(f'<tr><th scope="row">{day(d)}<small>the night before this open</small></th>'
+                    f'<td data-label="Size of move"><span class="num">{r["avg_abs_z"]:.2f}&times; a normal day</span></td>'
+                    + "".join(f'<td data-label="{POLICY[c][0]}">{pct(r.get(c))}</td>' for c in cols) + "</tr>")
+    return f'<table class="tbl" style="margin-top:0"><thead><tr>{head}</tr></thead><tbody>{"".join(rows)}</tbody></table>'
 
 
-def live_section():
-    if not os.path.exists(LOG):
-        return "<p class='sub'>The live paper log has not started yet.</p>"
-    recs = [json.loads(l) for l in open(LOG) if l.strip()]
-    decisions = sum(r["event"] == "decision" for r in recs)
-    out = [f"<p class='sub'>{len(recs)} entries, {decisions} decisions, {e(recs[0]['time'])} to {e(recs[-1]['time'])} (UTC). Newest first. "
-           f"<a href='{REPO}/blob/main/logs/paper_log.jsonl'>Raw log</a></p>"]
-    for r in reversed(recs[-60:]):
-        bits = [f"<span class='tag'>{e(r['event'].replace('_', ' '))}</span>"]
-        if r.get("session"):
-            bits.append(f"<span class='tag'>{e(r['session'])} open</span>")
-        if "equity" in r:
-            bits.append(f"equity {r['equity']:,.2f} USDT")
-        body = ""
+# ---------- live log ----------
+
+def when(rec):
+    return datetime.strptime(rec["time"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc).astimezone(NY)
+
+
+def entry(rec, action, tag, reason, extra=""):
+    t = when(rec)
+    return (f'<li class="entry" data-action="{action}"><time datetime="{t.isoformat()}">{t:%H:%M} ET<span>{day(t)}</span></time>'
+            f'<div><span class="tag">{e(tag)}</span><p class="reason">{reason}</p>{extra}</div></li>')
+
+
+def decision_entry(rec, orders):
+    fills = rec.get("fills") or []
+    sides = {f["side"] for f in fills}
+    if not fills:
+        action, tag = "hold", "Stayed out"
+    elif len(fills) == 1:
+        action, tag = fills[0]["side"], f'{"Bought" if fills[0]["side"] == "buy" else "Sold"} {fills[0]["ticker"]}'
+    else:
+        action, tag = (sides.pop() if len(sides) == 1 else "mixed"), f"Traded {len(fills)} stocks"
+    seen = sorted(rec.get("seen", {}).items(), key=lambda kv: -abs(kv[1]["z"]))[:4]
+    saw = '<ul class="saw" aria-label="What it saw">' + "".join(
+        f'<li><b>{e(t)}</b><span class="{sign(round(f["move"], 4))}">{pct_text(f["move"])}</span></li>' for t, f in seen) + "</ul>"
+    meta = [f"<div><dt>{e(t)} to {pct_text(w, 0)}</dt><dd>{e(rec['reasons'].get(t, ''))}</dd></div>"
+            for t, w in rec.get("approved", {}).items()]
+    blocked = ", ".join(f"{e(t)} ({e(rule.replace('_', ' '))})" for t, rule in rec.get("violations", []))
+    meta.append(f'<div><dt>Risk layer</dt><dd class="blocked">Blocked: {blocked}</dd></div>' if blocked
+                else "<div><dt>Risk layer</dt><dd>Nothing blocked</dd></div>")
+    ids = [o["order_id"] for o in orders if o.get("order_id")]
+    if ids:
+        meta.append(f'<div><dt>Bitget demo order{"s" if len(ids) > 1 else ""}</dt><dd class="id">{", ".join(map(e, ids))}</dd></div>')
+    if any(o.get("error") for o in orders):
+        meta.append('<div><dt>Bitget demo</dt><dd class="blocked">An order was not accepted; the paper book still holds the position</dd></div>')
+    reason = e(rec.get("note") or "No note.") if rec.get("note") != "INVALID_OUTPUT" \
+        else "The model's answer could not be read, so no action was taken."
+    return entry(rec, action, tag, reason, saw + f'<dl class="meta">{"".join(meta)}</dl>')
+
+
+def live_feed():
+    recs = [json.loads(l) for l in open(LOG) if l.strip()] if os.path.exists(LOG) else []
+    orders = {r["time"]: r["orders"] for r in recs if r["event"] == "exchange_orders"}
+    items = []
+    for r in recs:
         if r["event"] == "decision":
-            acts = "; ".join(f"<b>{e(t)}</b> to {w:+.0%} — {e(r['reasons'].get(t, ''))}" for t, w in r["approved"].items()) or "No trade."
-            blocked = "<div>Risk layer blocked: " + ", ".join(f"{e(t)} ({e(rule.replace('_', ' '))})" for t, rule in r["violations"]) + "</div>" if r["violations"] else ""
-            body = f"<div>{acts}</div>{blocked}<div class='sub'>{e(r.get('note', ''))}</div>"
+            items.append(decision_entry(r, orders.get(r["time"], [])))
         elif r["event"] == "session_exit":
-            body = f"<div>Flattened after the open. Night return {pct(r['ret'])}</div>"
+            items.append(entry(r, "hold", "Flattened", f"Closed everything after the open. Night result {pct(r['ret'])}."))
         elif r["event"] == "stops":
-            body = "<div>Stops fired: " + ", ".join(f"{e(t)} ({e(rule.replace('_', ' '))})" for t, rule in r["stops"]) + "</div>"
+            fired = ", ".join(f"{e(t)} ({e(rule.replace('_', ' '))})" for t, rule in r["stops"])
+            items.append(entry(r, "sell", "Stop fired", f"The risk layer closed positions without asking the agent: {fired}."))
         elif r["event"] == "decision_error":
-            body = f"<div class='neg'>{e(r['error'])}</div>"
-        out.append(f"<div class='card log'><div class='t'>{e(r['time'])}</div>{' '.join(bits)}{body}</div>")
-    return "".join(out)
+            items.append(entry(r, "hold", "No decision", "The model could not be reached, so nothing was changed."))
+    decisions = sum(r["event"] == "decision" for r in recs)
+    since = f" since {day(when(recs[0]))}" if recs else ""
+    head = (f"{decisions} decisions{since}, newest first. Most of them are decisions not to trade. "
+            f'<a href="{REPO}/blob/main/logs/paper_log.jsonl">Raw log</a>')
+    empty = '<li class="empty">No decisions yet tonight<span>The first one appears here after the next check.</span></li>'
+    return head, f'<ol class="feed" reversed>{empty}{"".join(reversed(items[-FEED_LIMIT:]))}</ol>'
 
 
-def notes_section():
-    files = sorted(glob.glob(os.path.join(NOTES, "*.md")), reverse=True)[:5]
-    return "".join(f"<div class='card'><pre>{e(open(f).read())}</pre></div>" for f in files) or \
-        "<p class='sub'>The first morning note is written after the first completed night.</p>"
+# ---------- morning notes ----------
+
+def notes():
+    items = []
+    for path in sorted(glob.glob(os.path.join(NOTES, "*.md")), reverse=True)[:6]:
+        sid = os.path.basename(path)[:-3]
+        parts = [p.strip() for p in open(path).read().split("\n\n") if p.strip() and not p.startswith("#")]
+        got = re.search(r"return ([+-][\d.]+)%", parts[0]) if parts else None
+        ret = float(got.group(1)) / 100 if got else None
+        result = f'<span class="note-result">Night result {pct(ret)}</span>' if ret is not None else ""
+        body = " ".join(parts[1:]) or (parts[0] if parts else "")
+        d = datetime.strptime(sid, "%Y-%m-%d")
+        items.append(f'<li class="note"><header><time datetime="{sid}">Before the open, {day(d)}</time>{result}</header>'
+                     f"<p>{e(body)}</p></li>")
+    empty = '<li class="empty">No notes yet<span>The first note is written after the market next opens.</span></li>'
+    return f'<ul class="notes">{empty}{"".join(items)}</ul>'
 
 
-def tiles(card):
-    pol = card["policies"]
-    agent = pol.get("agent_run0")
-    if not agent:
-        return "<p class='sub' style='margin-top:24px'>The agent replay is still running; the fixed-rule baselines are below.</p>"
-    va = card.get("value_added", {})
-    con = card.get("consistency") or {}
-    best = max((n for n in pol if not n.startswith("agent")), key=lambda n: pol[n]["total_return"])
-    items = [
-        ("Nights replayed", agent["sessions"]),
-        ("Agent return, after costs", pct(agent["total_return"])),
-        (f"Against the best fixed rule ({name(best)})", pct(va[best]["total_return"])),
-        ("Max drawdown", pct(agent["max_drawdown"])),
-        ("Proposals the risk layer overruled", f"{agent['risk_violation_rate']:.1%}"),
-        ("Same call across repeat passes", f"{con['agreement']:.0%}" if con.get("agreement") is not None else "-"),
-    ]
-    return "<div class='tiles'>" + "".join(f"<div class='card tile'><b>{v}</b><span>{e(k)}</span></div>" for k, v in items) + "</div>"
-
-
-STEPS = [
-    ("Sense", "Each name's move since the close, sized against its normal day, plus Bitcoin, earnings and headlines."),
-    ("Decide", "The model sets a target weight per name with a one-line reason. Staying out is allowed."),
-    ("Guard", "Hard limits it cannot override: 20% per name, 60% gross, stop-losses, no late entries."),
-    ("Trade", "Paper fills at Bitget prices, with 0.10% fee and 0.05% slippage per side."),
-    ("Hand off", "Everything is closed 15 minutes after the open, and a morning note is written."),
-]
-
+# ---------- page ----------
 
 def build(now_ms=None):
     now_ms = now_ms or int(time.time() * 1000)
     card = scorecard.build()
     results = {os.path.basename(p)[:-5]: json.load(open(p)) for p in glob.glob(os.path.join(scorecard.RESULTS, "*.json"))
                if not p.endswith("scorecard.json") and "consistency_run" not in p}
-    hero_logo = LOGO.format(ink="#f3efe4", accent="#e9b44c")
-    steps = "".join(f"<div class='card step'><b>{e(t)}</b>{e(d)}</div>" for t, d in STEPS)
-    page = f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Pervigil</title><meta name="description" content="An LLM agent that trades tokenized US stocks on Bitget while the US market is closed, benchmarked against fixed rules.">
-<link rel="icon" type="image/svg+xml" href="logo.svg"><style>{CSS}</style></head><body>
-<header><div class="wrap">
-<div class="brand">{hero_logo}<div><h1 class="serif">Pervigil</h1><p class="motto serif">Vigilat dum dormis<span>It keeps watch while you sleep</span></p></div></div>
-<p class="lede">An AI agent that trades tokenized US stocks on Bitget only while the US market is closed, and a proving ground that
-measures whether it beats a fixed rule. Paper trading only.</p>
-{status_pill(now_ms)}
-{week_strip()}
-</div></header>
-<main><div class="wrap">
-{tiles(card)}
-<h2 class="serif">The watch, step by step</h2>
-<div class="steps">{steps}</div>
-<h2 class="serif">Proving ground</h2>
-<p class="sub">Every policy replays the same past nights and weekends on real Bitget rToken prices, through the same risk layer and
-paper book. Each decision sees only candles that had already closed. Always fade bets a closed-hours move of one normal day or
-more reverses; always follow bets it continues.</p>
-{equity_chart(results)}
-{policy_table(card)}
-<h2 class="serif">The hardest nights</h2>
-<p class="sub">The five nights the market moved most while closed, and what each policy made or lost.</p>
-{stress_table(card)}
-<h2 class="serif">Morning notes</h2>{notes_section()}
-<h2 class="serif">Live paper log</h2>{live_section()}
-</div></main>
-<footer><div class="wrap">Pervigil · Bitget AI Base Camp Hackathon S2, Agentic Trading · <a href="{REPO}">Code, data and logs on GitHub</a> ·
-Paper trading only; nothing here is investment advice.</div></footer>
-<script>{HOVER_JS}</script></body></html>"""
+    agent = card["policies"].get(AGENT)
+    nights = agent["sessions"] if agent else 0
+    promo = (f'<div class="promo card"><span class="label">{nights} nights</span>'
+             f'<strong class="{sign(agent["total_return"])}">{pct_text(agent["total_return"])}</strong>'
+             f'<p>Scored against three fixed rules, earlier losing runs included.</p>'
+             f'<a class="btn" href="#proving">Scorecard</a></div>') if agent else ""
+    nav = "".join(f'<a{" class=\"on\"" if i == 0 else ""} href="#{k}">{v}</a>' for i, (k, v) in enumerate(NAV))
+    steps = "".join(f'<li class="step card"><h3>{t}</h3><p>{d}</p></li>' for t, d in STEPS)
+    log_head, feed = live_feed()
+    icon = "data:image/svg+xml," + LOGO_SVG.replace("#", "%23").replace('"', "'")
+    page = f"""<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>Pervigil · the night-shift trading agent</title>
+<meta name="description" content="Pervigil is an AI agent that trades tokenised US stocks only while the real market is closed, and publishes its scorecard.">
+<link rel="icon" type="image/svg+xml" href="{icon}">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Michroma&display=swap" rel="stylesheet">
+<style>
+{open(CSS).read()}</style>
+</head>
+<body>
+{LOGO_SYMBOL}
+<div class="shell">
+<aside class="side panel">
+  <a class="brand" href="#top">{USE_LOGO}Pervigil</a>
+  <nav class="nav" aria-label="Sections">{nav}</nav>
+  {promo}
+  <p class="side-foot"><a href="{REPO}">Code on GitHub</a><br>Paper trading only.</p>
+</aside>
+<main>
+  {status_bar(now_ms)}
+  <section class="panel hero" id="top">
+    <div class="hero-id">{USE_LOGO}<h1>Pervigil</h1></div>
+    <p class="motto" lang="la">Vigilat dum dormis<span lang="en">It keeps watch while you sleep.</span></p>
+    <p class="lede">An AI agent that trades ten big US stocks on Bitget only while the real market is closed, explains every decision in one sentence, and is flat again shortly after the opening bell.</p>
+    {week_strip(now_ms)}
+  </section>
+  <section class="panel" id="numbers">
+    <div class="sec-head"><h2>{nights or "Past"} nights, replayed</h2></div>
+    {figures(agent)}
+  </section>
+  <section class="panel" id="how">
+    <div class="sec-head"><h2>How the watch works</h2><p>The same five steps, every six hours, for as long as the market is closed.</p></div>
+    <ol class="steps">{steps}</ol>
+  </section>
+  <section class="panel" id="proving">
+    <div class="sec-head"><h2>Proving ground</h2>
+    <p>The agent was replayed over {nights} past nights and weekends and scored against three fixed rules that need no intelligence at all. Every strategy sees the same prices, pays the same costs and passes through the same risk limits. The fixed rules act when a stock has moved at least one normal day.{consistency_line(card)}</p></div>
+    {chart(results)}
+    {policy_table(card)}
+  </section>
+  {stages(card)}
+  <section class="panel" id="hardest">
+    <div class="sec-head"><h2>The hardest nights</h2><p>The five nights the market moved most while closed, and what each strategy made or lost on them.</p></div>
+    {stress_table(card)}
+  </section>
+  <section class="panel" id="log">
+    <div class="sec-head"><h2>Live log</h2><p>{log_head}</p></div>
+    {feed}
+  </section>
+  <section class="panel" id="notes">
+    <div class="sec-head"><h2>Morning notes</h2><p>What the agent leaves for whoever was asleep. One per night.</p></div>
+    {notes()}
+  </section>
+  <footer class="panel">
+    <p class="foot-id">{USE_LOGO}<span><a href="{REPO}">Code, data and logs on GitHub</a> &nbsp;·&nbsp; Built for the Bitget AI Base Camp Hackathon S2</span></p>
+    <p><strong>Paper trading only. Not financial advice.</strong></p>
+  </footer>
+</main>
+</div>
+<script>
+{NAV_JS}
+</script>
+</body>
+</html>
+"""
     os.makedirs(DOCS, exist_ok=True)
     open(os.path.join(DOCS, "index.html"), "w").write(page)
-    open(os.path.join(DOCS, "logo.svg"), "w").write(LOGO.format(ink="#b7791f", accent="#e9b44c"))
+    open(os.path.join(DOCS, "logo.svg"), "w").write(LOGO_SVG + "\n")
     return os.path.join(DOCS, "index.html")
 
 

@@ -1,86 +1,333 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Pervigil</title><meta name="description" content="An LLM agent that trades tokenized US stocks on Bitget while the US market is closed, benchmarked against fixed rules.">
-<link rel="icon" type="image/svg+xml" href="logo.svg"><style>
-:root{--bg:#f6f4ee;--card:#fcfcfb;--ink:#14161c;--mute:#565b66;--line:#dedbd1;--accent:#b7791f;--good:#0a7d4f;--bad:#b3261e;
---s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--open:#cfcabb;--hero:#10141f;--hero-ink:#f3efe4;--hero-mute:#a9adb8;--hero-line:#2a3040;--lamp:#e9b44c}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0c0f17;--card:#1a1a19;--ink:#eef0f3;--mute:#a3a8b3;--line:#2c2f36;
---accent:#e9b44c;--good:#4cc38a;--bad:#f2867d;--s1:#3987e5;--s2:#d95926;--s3:#199e70;--open:#4a4f5c}}
-:root[data-theme="dark"]{--bg:#0c0f17;--card:#1a1a19;--ink:#eef0f3;--mute:#a3a8b3;--line:#2c2f36;
---accent:#e9b44c;--good:#4cc38a;--bad:#f2867d;--s1:#3987e5;--s2:#d95926;--s3:#199e70;--open:#4a4f5c}
-*{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
-body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif}
-.wrap{max-width:1000px;margin:0 auto;padding:0 16px}
-.serif{font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif}
-header{background:var(--hero);color:var(--hero-ink);padding:44px 0 36px}
-.brand{display:flex;align-items:center;gap:16px}.brand svg{width:64px;height:64px;flex:none}
-.brand h1{font-size:44px;line-height:1;margin:0;letter-spacing:.01em;font-weight:600}
-.motto{font-style:italic;font-size:19px;color:var(--lamp);margin:6px 0 0}.motto span{font-style:normal;color:var(--hero-mute);font-size:14px;margin-left:8px}
-.lede{max-width:680px;font-size:18px;margin:22px 0 18px;color:var(--hero-ink)}
-.pill{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--hero-line);border-radius:999px;padding:5px 14px;font-size:14px;color:var(--hero-ink)}
-.dot{width:9px;height:9px;border-radius:50%;background:var(--lamp)}.dot.off{background:transparent;border:2px solid var(--hero-mute)}
-.week{margin-top:26px}.week .bar{display:flex;height:14px;border-radius:4px;overflow:hidden;gap:2px}
-.week .bar i{display:block;height:100%}.week .c{background:var(--lamp)}.week .o{background:#4a5163}
-.week .days{display:grid;grid-template-columns:repeat(7,1fr);font-size:12px;color:var(--hero-mute);margin-top:5px}
-.week .key{font-size:13px;color:var(--hero-mute);margin-top:8px}.sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin:0 5px 0 12px;vertical-align:baseline}
-.week .key .sw:first-child{margin-left:0}
-main{padding:8px 0 72px}h2{font-size:24px;margin:44px 0 6px;font-weight:600}
-p{margin:8px 0}.sub{color:var(--mute);font-size:15px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px;margin:14px 0}
-.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:24px}
-.tile{margin:0}.tile b{display:block;font-size:26px;font-variant-numeric:tabular-nums;line-height:1.2}.tile span{color:var(--mute);font-size:13px}
-.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;counter-reset:s}
-.step{margin:0;font-size:14px}.step b{display:block;font-size:16px}.step:before{counter-increment:s;content:counter(s);display:block;color:var(--accent);font:600 22px/1 "Iowan Old Style",Georgia,serif;margin-bottom:6px}
-.scroll{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
-th,td{text-align:right;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}th:first-child,td:first-child{text-align:left}
-tr:last-child td{border-bottom:0}th{color:var(--mute);font-weight:600}.pos{color:var(--good)}.neg{color:var(--bad)}.agent td{font-weight:650}
-.legend{display:flex;flex-wrap:wrap;gap:4px 18px;font-size:14px;margin-bottom:6px}.legend i{display:inline-block;width:14px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
-.chart{position:relative;overflow-x:auto}.chart svg{display:block;width:100%;min-width:640px;height:auto}.chart text{fill:var(--mute);font-size:12px}.chart .end{fill:var(--ink);font-size:13px}
-.grid{stroke:var(--line);stroke-width:1}.zero{stroke:var(--mute);stroke-width:1}.cross{stroke:var(--mute);stroke-width:1;stroke-dasharray:3 3;visibility:hidden}
-.tip{position:absolute;pointer-events:none;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;
-box-shadow:0 4px 14px rgba(0,0,0,.18);visibility:hidden;white-space:nowrap;font-variant-numeric:tabular-nums}.tip i{display:inline-block;width:10px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
-.log{font-size:14px;padding:12px 16px;margin:8px 0}.log .t{color:var(--mute);font-size:12px}
-.tag{display:inline-block;border:1px solid var(--line);border-radius:6px;padding:0 7px;font-size:12px;margin-right:6px;color:var(--mute)}
-pre{white-space:pre-wrap;font:15px/1.6 inherit;margin:0}a{color:var(--accent)}
-footer{border-top:1px solid var(--line);padding:22px 0 40px;color:var(--mute);font-size:14px}
-@media (max-width:560px){.motto span{display:block;margin:2px 0 0}.brand h1{font-size:34px}.brand svg{width:48px;height:48px}.lede{font-size:16px}}
-</style></head><body>
-<header><div class="wrap">
-<div class="brand"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Pervigil">
-<defs><mask id="m"><rect width="64" height="64" fill="#fff"/><circle cx="37.5" cy="27.5" r="9.5" fill="#000"/></mask></defs>
-<path d="M4 32 Q32 5 60 32 Q32 59 4 32Z" fill="none" stroke="#f3efe4" stroke-width="3.5" stroke-linejoin="round"/>
-<circle cx="32" cy="32" r="12" fill="#e9b44c" mask="url(#m)"/></svg><div><h1 class="serif">Pervigil</h1><p class="motto serif">Vigilat dum dormis<span>It keeps watch while you sleep</span></p></div></div>
-<p class="lede">An AI agent that trades tokenized US stocks on Bitget only while the US market is closed, and a proving ground that
-measures whether it beats a fixed rule. Paper trading only.</p>
-<span class='pill'><span class='dot'></span>On watch: weekend window, until Mon 05 Oct, 09:30 New York · as of 04 Oct 13:22 UTC</span>
-<div class='week'><div class='bar' role='img' aria-label='US market open 32.5 of 168 hours a week'><i class='c' style='flex:9.5'></i><i class='o' style='flex:6.5'></i><i class='c' style='flex:17.5'></i><i class='o' style='flex:6.5'></i><i class='c' style='flex:17.5'></i><i class='o' style='flex:6.5'></i><i class='c' style='flex:17.5'></i><i class='o' style='flex:6.5'></i><i class='c' style='flex:17.5'></i><i class='o' style='flex:6.5'></i><i class='c' style='flex:56.0'></i></div><div class='days'><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div><div class='key'><span class='sw' style='background:#4a5163'></span>US market open, 32.5 h<span class='sw' style='background:var(--lamp)'></span>Closed, 135.5 h (81% of the week): Pervigil's watch</div></div>
-</div></header>
-<main><div class="wrap">
-<div class='tiles'><div class='card tile'><b>55</b><span>Nights replayed</span></div><div class='card tile'><b><span class='pos'>+5.80%</span></b><span>Agent return, after costs</span></div><div class='card tile'><b><span class='pos'>+2.40%</span></b><span>Against the best fixed rule (Always follow)</span></div><div class='card tile'><b><span class='neg'>-0.30%</span></b><span>Max drawdown</span></div><div class='card tile'><b>0.0%</b><span>Proposals the risk layer overruled</span></div><div class='card tile'><b>99%</b><span>Same call across repeat passes</span></div></div>
-<h2 class="serif">The watch, step by step</h2>
-<div class="steps"><div class='card step'><b>Sense</b>Each name&#x27;s move since the close, sized against its normal day, plus Bitcoin, earnings and headlines.</div><div class='card step'><b>Decide</b>The model sets a target weight per name with a one-line reason. Staying out is allowed.</div><div class='card step'><b>Guard</b>Hard limits it cannot override: 20% per name, 60% gross, stop-losses, no late entries.</div><div class='card step'><b>Trade</b>Paper fills at Bitget prices, with 0.10% fee and 0.05% slippage per side.</div><div class='card step'><b>Hand off</b>Everything is closed 15 minutes after the open, and a morning note is written.</div></div>
-<h2 class="serif">Proving ground</h2>
-<p class="sub">Every policy replays the same past nights and weekends on real Bitget rToken prices, through the same risk layer and
-paper book. Each decision sees only candles that had already closed. Always fade bets a closed-hours move of one normal day or
-more reverses; always follow bets it continues.</p>
-<div class='card'><div class='legend'><span><i style='background:var(--s1)'></i>Pervigil agent</span><span><i style='background:var(--s2)'></i>Always follow</span><span><i style='background:var(--s3)'></i>Always fade</span></div><div class='chart' id='chart'><svg viewBox='0 0 900 320' role='img' aria-label='Cumulative return by policy across replayed nights'><line class='grid' x1='52' x2='750' y1='290.0' y2='290.0'/><text x='44' y='294.0' text-anchor='end'>-6%</text><line class='grid' x1='52' x2='750' y1='244.0' y2='244.0'/><text x='44' y='248.0' text-anchor='end'>-4%</text><line class='grid' x1='52' x2='750' y1='198.0' y2='198.0'/><text x='44' y='202.0' text-anchor='end'>-2%</text><line class='zero' x1='52' x2='750' y1='152.0' y2='152.0'/><text x='44' y='156.0' text-anchor='end'>+0%</text><line class='grid' x1='52' x2='750' y1='106.0' y2='106.0'/><text x='44' y='110.0' text-anchor='end'>+2%</text><line class='grid' x1='52' x2='750' y1='60.0' y2='60.0'/><text x='44' y='64.0' text-anchor='end'>+4%</text><line class='grid' x1='52' x2='750' y1='14.0' y2='14.0'/><text x='44' y='18.0' text-anchor='end'>+6%</text><text x='52.0' y='312' text-anchor='start'>07-17</text><text x='284.7' y='312' text-anchor='middle'>08-12</text><text x='517.3' y='312' text-anchor='middle'>09-08</text><text x='750.0' y='312' text-anchor='end'>10-02</text><polyline points='52.0,152.0 64.9,152.0 77.9,141.9 90.8,141.9 103.7,102.2 116.6,102.2 129.6,102.2 142.5,102.2 155.4,102.2 168.3,76.6 181.3,32.0 194.2,35.8 207.1,35.8 220.0,35.8 233.0,35.8 245.9,35.8 258.8,35.8 271.7,35.8 284.7,35.8 297.6,35.8 310.5,35.8 323.4,35.8 336.4,35.8 349.3,35.8 362.2,35.6 375.1,32.4 388.1,32.4 401.0,39.2 413.9,39.2 426.9,25.1 439.8,25.1 452.7,25.6 465.6,25.6 478.6,25.6 491.5,25.6 504.4,25.6 517.3,25.6 530.3,25.6 543.2,25.6 556.1,25.6 569.0,25.6 582.0,25.6 594.9,25.6 607.8,25.6 620.7,24.0 633.7,20.8 646.6,20.8 659.5,20.8 672.4,20.8 685.4,20.8 698.3,20.8 711.2,20.8 724.1,20.8 737.1,18.7 750.0,18.7' fill='none' stroke='var(--s1)' stroke-width='2' stroke-linejoin='round' stroke-linecap='round'/><polyline points='52.0,150.7 64.9,150.7 77.9,140.6 90.8,140.6 103.7,119.3 116.6,119.3 129.6,123.3 142.5,123.3 155.4,123.3 168.3,91.6 181.3,63.0 194.2,74.5 207.1,74.5 220.0,74.5 233.0,74.5 245.9,74.5 258.8,74.5 271.7,74.5 284.7,74.5 297.6,74.5 310.5,74.5 323.4,74.5 336.4,74.5 349.3,74.5 362.2,74.2 375.1,71.0 388.1,71.0 401.0,71.0 413.9,71.0 426.9,67.5 439.8,67.5 452.7,73.1 465.6,73.1 478.6,73.1 491.5,73.1 504.4,73.1 517.3,73.1 530.3,73.1 543.2,73.6 556.1,73.4 569.0,71.7 582.0,73.4 594.9,73.4 607.8,73.3 620.7,73.0 633.7,66.6 646.6,66.6 659.5,66.6 672.4,68.6 685.4,68.6 698.3,69.5 711.2,69.5 724.1,69.5 737.1,73.9 750.0,73.9' fill='none' stroke='var(--s2)' stroke-width='2' stroke-linejoin='round' stroke-linecap='round'/><polyline points='52.0,158.8 64.9,158.8 77.9,170.3 90.8,170.3 103.7,186.9 116.6,186.9 129.6,185.7 142.5,185.7 155.4,185.7 168.3,205.9 181.3,234.8 194.2,229.6 207.1,229.6 220.0,229.6 233.0,229.6 245.9,229.6 258.8,229.6 271.7,229.6 284.7,229.6 297.6,229.6 310.5,229.6 323.4,229.6 336.4,229.6 349.3,229.6 362.2,231.2 375.1,235.5 388.1,235.5 401.0,235.5 413.9,235.5 426.9,240.1 439.8,240.1 452.7,237.5 465.6,237.5 478.6,237.5 491.5,237.5 504.4,237.5 517.3,237.5 530.3,237.5 543.2,238.4 556.1,239.9 569.0,245.5 582.0,245.2 594.9,245.2 607.8,248.0 620.7,249.6 633.7,259.5 646.6,259.5 659.5,259.5 672.4,259.0 685.4,259.0 698.3,259.4 711.2,259.4 724.1,259.4 737.1,256.7 750.0,256.7' fill='none' stroke='var(--s3)' stroke-width='2' stroke-linejoin='round' stroke-linecap='round'/><circle cx='750.0' cy='18.7' r='4' fill='var(--s1)' stroke='var(--card)' stroke-width='2'/><text class='end' x='760.0' y='22.7'>Pervigil agent +5.8%</text><circle cx='750.0' cy='73.9' r='4' fill='var(--s2)' stroke='var(--card)' stroke-width='2'/><text class='end' x='760.0' y='77.9'>Always follow +3.4%</text><circle cx='750.0' cy='256.7' r='4' fill='var(--s3)' stroke='var(--card)' stroke-width='2'/><text class='end' x='760.0' y='260.7'>Always fade -4.6%</text><line class='cross' y1='14' y2='290'/></svg><div class='tip'></div></div><p class='sub'>Cumulative return after costs, night by night. The zero line is doing nothing. Exact figures are in the table below.</p></div><script type='application/json' id='chart-data'>{"w": 900, "l": 52, "pw": 698, "n": 55, "dates": ["2026-07-17", "2026-07-20", "2026-07-21", "2026-07-22", "2026-07-23", "2026-07-24", "2026-07-27", "2026-07-28", "2026-07-29", "2026-07-30", "2026-07-31", "2026-08-03", "2026-08-04", "2026-08-05", "2026-08-06", "2026-08-07", "2026-08-10", "2026-08-11", "2026-08-12", "2026-08-13", "2026-08-14", "2026-08-17", "2026-08-18", "2026-08-19", "2026-08-20", "2026-08-21", "2026-08-24", "2026-08-25", "2026-08-26", "2026-08-27", "2026-08-28", "2026-08-31", "2026-09-01", "2026-09-02", "2026-09-03", "2026-09-04", "2026-09-08", "2026-09-09", "2026-09-10", "2026-09-11", "2026-09-14", "2026-09-15", "2026-09-16", "2026-09-17", "2026-09-18", "2026-09-21", "2026-09-22", "2026-09-23", "2026-09-24", "2026-09-25", "2026-09-28", "2026-09-29", "2026-09-30", "2026-10-01", "2026-10-02"], "series": [{"name": "Pervigil agent", "c": "s1", "v": [0.0, 0.0, 0.00438, 0.00438, 0.02167, 0.02167, 0.02167, 0.02167, 0.02167, 0.0328, 0.05216, 0.05052, 0.05052, 0.05052, 0.05052, 0.05052, 0.05052, 0.05052, 0.05052, 0.05052, 0.05052, 0.05052, 0.05052, 0.05052, 0.05063, 0.05201, 0.05201, 0.04906, 0.04906, 0.0552, 0.0552, 0.05498, 0.05498, 0.05498, 0.05498, 0.05498, 0.05498, 0.05498, 0.05498, 0.05498, 0.05494, 0.05494, 0.05494, 0.05494, 0.05564, 0.05704, 0.05704, 0.05704, 0.05704, 0.05704, 0.05704, 0.05704, 0.05704, 0.05796, 0.05796]}, {"name": "Always follow", "c": "s2", "v": [0.00057, 0.00057, 0.00495, 0.00495, 0.01421, 0.01421, 0.01249, 0.01249, 0.01249, 0.02627, 0.03868, 0.03371, 0.03371, 0.03371, 0.03371, 0.03371, 0.03371, 0.03371, 0.03371, 0.03371, 0.03371, 0.03371, 0.03371, 0.03371, 0.03384, 0.0352, 0.0352, 0.0352, 0.0352, 0.03674, 0.03674, 0.03429, 0.03429, 0.03429, 0.03429, 0.03429, 0.03429, 0.03429, 0.03411, 0.03418, 0.03493, 0.03418, 0.03418, 0.03422, 0.03436, 0.03714, 0.03714, 0.03714, 0.03628, 0.03628, 0.03585, 0.03585, 0.03585, 0.03397, 0.03397]}, {"name": "Always fade", "c": "s3", "v": [-0.00296, -0.00296, -0.00794, -0.00794, -0.01515, -0.01515, -0.01467, -0.01467, -0.01467, -0.02345, -0.036, -0.03372, -0.03372, -0.03372, -0.03372, -0.03372, -0.03372, -0.03372, -0.03372, -0.03372, -0.03372, -0.03372, -0.03372, -0.03372, -0.03443, -0.03628, -0.03628, -0.03628, -0.03628, -0.0383, -0.0383, -0.03717, -0.03717, -0.03717, -0.03717, -0.03717, -0.03717, -0.03717, -0.03758, -0.03823, -0.04065, -0.04053, -0.04053, -0.04172, -0.04243, -0.04673, -0.04673, -0.04673, -0.04652, -0.04652, -0.0467, -0.0467, -0.0467, -0.04553, -0.04553]}]}</script>
-<div class='card scroll'><table><tr><th>Policy</th><th>Nights</th><th>Nights traded</th><th>Return</th><th>Sharpe</th><th>Sortino</th><th>Max drawdown</th><th>Win rate</th><th>Worst night</th><th>Risk blocks</th></tr><tr class='agent'><td>Pervigil agent</td><td>55</td><td>14</td><td><span class='pos'>+5.80%</span></td><td>4.32</td><td>37.75</td><td><span class='neg'>-0.30%</span></td><td>71%</td><td><span class='neg'>-0.28%</span></td><td>0 of 33</td></tr><tr class=''><td>Always fade</td><td>55</td><td>21</td><td><span class='neg'>-4.55%</span></td><td>-5.35</td><td>-5.17</td><td><span class='neg'>-4.67%</span></td><td>29%</td><td><span class='neg'>-1.29%</span></td><td>5 of 67</td></tr><tr class=''><td>Always follow</td><td>55</td><td>21</td><td><span class='pos'>+3.40%</span></td><td>3.32</td><td>11.98</td><td><span class='neg'>-0.48%</span></td><td>62%</td><td><span class='neg'>-0.48%</span></td><td>0 of 66</td></tr><tr class=''><td>Do nothing</td><td>55</td><td>0</td><td><span class=''>+0.00%</span></td><td>0.00</td><td>0.00</td><td><span class=''>+0.00%</span></td><td>-</td><td><span class=''>+0.00%</span></td><td>0 of 0</td></tr></table></div>
-<h2 class="serif">The hardest nights</h2>
-<p class="sub">The five nights the market moved most while closed, and what each policy made or lost.</p>
-<div class='card scroll'><table><tr><th>Night (open date)</th><th>Average move, in normal days</th><th>Pervigil agent</th><th>Always fade</th><th>Always follow</th><th>Do nothing</th></tr><tr><td>2026-07-31</td><td>1.68</td><td><span class='pos'>+1.87%</span></td><td><span class='neg'>-1.29%</span></td><td><span class='pos'>+1.21%</span></td><td><span class=''>+0.00%</span></td></tr><tr><td>2026-07-30</td><td>1.13</td><td><span class='pos'>+1.09%</span></td><td><span class='neg'>-0.89%</span></td><td><span class='pos'>+1.36%</span></td><td><span class=''>+0.00%</span></td></tr><tr><td>2026-07-17</td><td>0.91</td><td><span class=''>+0.00%</span></td><td><span class='neg'>-0.30%</span></td><td><span class='pos'>+0.06%</span></td><td><span class=''>+0.00%</span></td></tr><tr><td>2026-09-14</td><td>0.82</td><td><span class='neg'>-0.00%</span></td><td><span class='neg'>-0.25%</span></td><td><span class='pos'>+0.07%</span></td><td><span class=''>+0.00%</span></td></tr><tr><td>2026-09-17</td><td>0.79</td><td><span class=''>+0.00%</span></td><td><span class='neg'>-0.12%</span></td><td><span class='pos'>+0.00%</span></td><td><span class=''>+0.00%</span></td></tr></table></div>
-<h2 class="serif">Morning notes</h2><p class='sub'>The first morning note is written after the first completed night.</p>
-<h2 class="serif">Live paper log</h2><p class='sub'>10 entries, 7 decisions, 2026-10-02T20:01:14Z to 2026-10-04T13:19:28Z (UTC). Newest first. <a href='https://github.com/Milliebanned/pervigil/blob/main/logs/paper_log.jsonl'>Raw log</a></p><div class='card log'><div class='t'>2026-10-04T13:19:28Z</div><span class='tag'>exchange orders</span> <span class='tag'>2026-10-05 open</span></div><div class='card log'><div class='t'>2026-10-04T13:05:41Z</div><span class='tag'>exchange orders</span> <span class='tag'>2026-10-05 open</span></div><div class='card log'><div class='t'>2026-10-04T12:13:38Z</div><span class='tag'>decision</span> <span class='tag'>2026-10-05 open</span> equity 10,000.00 USDT<div>No trade.</div><div class='sub'>Moves since the cash close are small relative to normal ranges, with no earnings catalyst and only a mild Bitcoin lift, so any expected open edge looks below trading costs.</div></div><div class='card log'><div class='t'>2026-10-04T05:40:09Z</div><span class='tag'>decision</span> <span class='tag'>2026-10-05 open</span> equity 10,000.00 USDT<div>No trade.</div><div class='sub'>Moves since the cash close are tiny relative to normal daily ranges, with no earnings catalysts and a long weekend window still ahead. After 0.15% per side in costs, there is no edge in fading or chasing these small rToken drifts.</div></div><div class='card log'><div class='t'>2026-10-03T21:06:20Z</div><span class='tag'>decision</span> <span class='tag'>2026-10-05 open</span> equity 10,000.00 USDT<div>No trade.</div><div class='sub'>Weekend drift is tiny across all names with z-scores well below a normal day and Bitcoin barely positive, so there is no edge worth paying the round-trip cost. Staying flat into the open.</div></div><div class='card log'><div class='t'>2026-10-03T16:06:10Z</div><span class='tag'>decision</span> <span class='tag'>2026-10-05 open</span> equity 10,000.00 USDT<div>No trade.</div><div class='sub'>Moves since close are negligible across all names, with z-scores near zero and no earnings catalysts. Trading costs dominate any expected edge, so staying flat is the best decision.</div></div><div class='card log'><div class='t'>2026-10-03T12:25:49Z</div><span class='tag'>decision</span> <span class='tag'>2026-10-05 open</span> equity 10,000.00 USDT<div>No trade.</div><div class='sub'>All observed moves are modest (≤0.15%) and well below the ~0.30% round‑trip cost; z‑scores are small, so no new positions are justified for this weekend window.</div></div><div class='card log'><div class='t'>2026-10-03T06:21:17Z</div><span class='tag'>decision</span> <span class='tag'>2026-10-05 open</span> equity 10,000.00 USDT<div>No trade.</div><div class='sub'>All moves are tiny relative to normal daily volatility and below the 0.30% round‑trip cost threshold. With modest Bitcoin upside and no earnings catalysts, staying flat is the prudent choice.</div></div><div class='card log'><div class='t'>2026-10-02T22:26:47Z</div><span class='tag'>decision</span> <span class='tag'>2026-10-05 open</span> equity 10,000.00 USDT<div>No trade.</div><div class='sub'>All rToken moves are tiny relative to their typical daily volatility, well below the 0.15% per‑side cost threshold. No earnings or strong macro signal justifies a position, so we stay flat.</div></div><div class='card log'><div class='t'>2026-10-02T20:01:14Z</div><span class='tag'>session start</span> <span class='tag'>2026-10-05 open</span> equity 10,000.00 USDT</div>
-</div></main>
-<footer><div class="wrap">Pervigil · Bitget AI Base Camp Hackathon S2, Agentic Trading · <a href="https://github.com/Milliebanned/pervigil">Code, data and logs on GitHub</a> ·
-Paper trading only; nothing here is investment advice.</div></footer>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>Pervigil · the night-shift trading agent</title>
+<meta name="description" content="Pervigil is an AI agent that trades tokenised US stocks only while the real market is closed, and publishes its scorecard.">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' role='img' aria-label='Pervigil'><rect width='48' height='48' rx='12' fill='%235a58f2'/><g fill='%23ffffff'><path d='M6 24A20 20 0 0 1 42 24A20 20 0 0 1 6 24Z'/></g><g fill='%235a58f2'><circle cx='24' cy='24' r='8'/></g><g fill='%23ffffff'><circle cx='26.6' cy='22.4' r='6.4'/></g><g fill='%233ff0a6'><circle cx='26.6' cy='22.4' r='2.7'/></g></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Michroma&display=swap" rel="stylesheet">
+<style>
+/* ---------- Tokens. Dark is the default; the switch in the top bar flips to light. ---------- */
+:root {
+  color-scheme: dark;
+  --bg:       light-dark(#eceef5, #08090f);
+  --panel:    light-dark(#ffffff, #0f111a);
+  --card:     light-dark(#f4f5fa, #151824);
+  --line:     light-dark(#dde0ea, #1e2231);
+  --line-2:   light-dark(#c6cad8, #2c3144);
+  --text:     light-dark(#11131c, #f3f4f8);
+  --muted:    light-dark(#606779, #7c8396);
+  --accent:   light-dark(#4b49e6, #5a58f2);   /* button purple */
+  --accent-t: light-dark(#4b49e6, #9291ff);   /* purple as text / line */
+  --pos:      light-dark(#0b8a54, #1fd088);
+  --neg:      light-dark(#cf3340, #ff5a66);
+  --s-follow: light-dark(#b96a00, #f2a33a);
+  --s-none:   light-dark(#7b8192, #6a7184);
+
+  --display: "Michroma", "Manrope", sans-serif;
+  --sans:    "Manrope", system-ui, sans-serif;
+  --r-panel: 14px;
+  --r-card:  10px;
+}
+:root:has(#theme-switch:checked) { color-scheme: light; }
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; scroll-padding-top: 16px; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 500 15px/1.55 var(--sans); overflow-wrap: break-word; }
+a { color: inherit; }
+:focus-visible { outline: 2px solid var(--accent-t); outline-offset: 2px; }
+h1, h2, h3, p, ul, ol, dl, dd { margin: 0; padding: 0; }
+ul, ol { list-style: none; }
+
+.num  { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; white-space: nowrap; font-weight: 600; }
+.pos  { color: var(--pos); }
+.neg  { color: var(--neg); }
+.flat { color: var(--muted); }
+.label { font: 400 0.62rem/1.4 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-panel); }
+.card  { background: var(--card);  border: 1px solid var(--line); border-radius: var(--r-card); }
+.btn { display: inline-flex; align-items: center; justify-content: center; padding: 12px 18px; border-radius: 8px; background: var(--accent); color: #fff; text-decoration: none; font: 400 0.62rem/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; }
+.btn:hover { filter: brightness(1.12); }
+
+/* ---------- Shell: sidebar + main ---------- */
+.shell { display: grid; grid-template-columns: 236px minmax(0, 1fr); gap: 12px; max-width: 1360px; margin: 0 auto; padding: 12px; }
+.side { position: sticky; top: 12px; align-self: start; height: calc(100vh - 24px); padding: 22px 16px; display: flex; flex-direction: column; gap: 22px; overflow-y: auto; }
+.brand { display: flex; align-items: center; gap: 10px; padding: 0 6px; font: 400 0.95rem/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; text-decoration: none; }
+.brand svg { width: 34px; height: 34px; flex: none; }
+.logo-bg  { fill: var(--accent); }
+.logo-fg  { fill: #fff; }
+.logo-dot { fill: #3ff0a6; }
+.nav { display: grid; gap: 8px; }
+.nav a { display: flex; align-items: center; gap: 12px; padding: 13px 14px; border-radius: 8px; background: var(--card); border: 1px solid var(--line); text-decoration: none; font: 400 0.6rem/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.nav a::before { content: ""; width: 7px; height: 7px; border-radius: 2px; background: currentColor; flex: none; }
+.nav a:hover { color: var(--text); border-color: var(--line-2); }
+.nav a.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.promo { padding: 16px; }
+.promo strong { display: block; font: 700 1.9rem/1.1 var(--sans); letter-spacing: -0.02em; margin: 8px 0 6px; font-variant-numeric: tabular-nums; }
+.promo p { font-size: 0.78rem; color: var(--muted); line-height: 1.45; margin-bottom: 14px; }
+.promo .btn { width: 100%; border-radius: 999px; padding: 10px 12px; }
+.side-foot { margin-top: auto; padding: 0 6px; font-size: 0.75rem; color: var(--muted); line-height: 1.5; }
+.side-foot a { color: var(--text); }
+
+main { display: grid; gap: 12px; min-width: 0; }
+section.panel { padding: 30px 32px 34px; }
+.sec-head { max-width: 68ch; margin-bottom: 24px; }
+h2 { display: flex; align-items: center; gap: 12px; font: 400 clamp(0.95rem, 2vw, 1.2rem)/1.3 var(--display); letter-spacing: 0.03em; text-transform: uppercase; }
+h2::before { content: ""; flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--pos); box-shadow: 0 0 0 4px color-mix(in srgb, var(--pos) 18%, transparent); }
+.sec-head p { color: var(--muted); margin-top: 10px; font-size: 0.9rem; }
+.sec-head p a { color: var(--text); }
+
+/* ---------- Top bar: status + theme ---------- */
+.top { display: flex; align-items: center; justify-content: space-between; gap: 12px 20px; flex-wrap: wrap; padding: 14px 20px; }
+.status { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; min-width: 0; }
+.status .pill { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; background: var(--card); border: 1px solid var(--line); font-weight: 600; font-size: 0.875rem; }
+.status .pill i { width: 8px; height: 8px; border-radius: 50%; background: var(--pos); animation: lamp 2.8s ease-in-out infinite; }
+.status.off .pill i { background: var(--muted); animation: none; }
+.status > span:last-child { font-size: 0.875rem; color: var(--muted); }
+@keyframes lamp { 50% { opacity: .3; } }
+.theme { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; }
+.theme input { appearance: none; width: 38px; height: 20px; margin: 0; border: 1px solid var(--line-2); background: var(--card); border-radius: 10px; position: relative; cursor: pointer; }
+.theme input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 12px; height: 12px; border-radius: 50%; background: var(--accent-t); transition: transform .2s; }
+.theme input:checked::after { transform: translateX(18px); }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .status .pill i { animation: none; } .theme input::after { transition: none; } }
+
+/* ---------- 1. Hero ---------- */
+.hero { padding: 44px 32px 36px !important; }
+.hero h1 { font: 400 clamp(1.7rem, 6.6vw, 4.2rem)/1.05 var(--display); letter-spacing: 0.01em; text-transform: uppercase; }
+.hero-id { display: flex; align-items: center; gap: clamp(14px, 2.4vw, 26px); }
+.hero-id svg { flex: none; width: clamp(52px, 8.6vw, 92px); height: clamp(52px, 8.6vw, 92px); }
+.motto { margin-top: 18px; font: 400 clamp(0.7rem, 1.5vw, 0.9rem)/1.5 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent-t); }
+.motto span { color: var(--muted); font: 500 0.875rem/1.5 var(--sans); letter-spacing: 0; text-transform: none; margin-left: 12px; }
+.lede { font-size: clamp(1rem, 1.7vw, 1.15rem); line-height: 1.55; max-width: 60ch; margin-top: 22px; text-wrap: pretty; }
+.week { margin-top: 36px; padding: 18px 18px 16px; }
+.week svg { display: block; width: 100%; height: 14px; border-radius: 4px; overflow: visible; }
+.week .closed { fill: var(--line); }
+.week .open   { fill: var(--accent); }
+.week .now    { stroke: var(--pos); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.week ol { display: grid; grid-template-columns: repeat(7, 1fr); margin-top: 10px; }
+.week p { margin-top: 12px; font-size: 0.82rem; color: var(--muted); }
+.week p b { color: var(--text); font-weight: 600; }
+
+/* ---------- 2. Headline numbers ---------- */
+.figures { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+.figure { padding: 18px 16px 16px; min-width: 0; }
+.figure dd.big { font: 600 clamp(1.5rem, 2.6vw, 2.1rem)/1.1 var(--sans); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; margin-top: 12px; white-space: nowrap; }
+.figure dd.big small { font-size: 0.5em; font-weight: 600; margin-left: 4px; letter-spacing: 0; color: var(--muted); }
+.figure dd.big.pos small, .figure dd.big.neg small { color: inherit; }
+.figure dd.sub { font-size: 0.78rem; color: var(--muted); margin-top: 6px; line-height: 1.4; }
+.figures-note { margin-top: 14px; font-size: 0.8rem; color: var(--muted); }
+
+/* ---------- 3. How the watch works ---------- */
+.steps { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; counter-reset: step; }
+.step { padding: 18px 16px; counter-increment: step; }
+.step::before { content: "0" counter(step); display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 26px; border-radius: 6px; background: var(--accent); color: #fff; font: 400 0.6rem/1 var(--display); }
+.step h3 { font: 400 0.72rem/1.3 var(--display); letter-spacing: 0.06em; text-transform: uppercase; margin: 14px 0 8px; }
+.step p { font-size: 0.84rem; color: var(--muted); line-height: 1.5; }
+
+/* ---------- 4. Chart ---------- */
+.chart-card { padding: 20px 20px 16px; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 24px; margin-bottom: 18px; font-size: 0.85rem; font-weight: 600; }
+.legend li { display: inline-flex; align-items: center; gap: 10px; }
+.key { display: inline-block; flex: none; width: 24px; height: 0; border-top: 2px solid; vertical-align: middle; }
+.key-agent  { border-color: var(--pos); border-top-width: 3px; }
+.key-follow { border-color: var(--s-follow); border-top-style: dashed; }
+.key-fade   { border-color: var(--accent-t); border-top-style: dotted; border-top-width: 3px; }
+.key-none   { border-color: var(--s-none); border-top-width: 1px; }
+.chart { display: grid; grid-template-columns: 40px 1fr; grid-template-rows: 300px 20px; column-gap: 10px; row-gap: 8px; }
+.chart .y, .chart .x { position: relative; font: 600 0.7rem/1 var(--sans); color: var(--muted); font-variant-numeric: tabular-nums; }
+.chart .y span { position: absolute; right: 0; transform: translateY(-50%); }
+.chart .x { grid-column: 2; }
+.chart .x span { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; }
+.chart .x span:first-child { transform: none; }
+.chart .x span:last-child  { transform: translateX(-100%); }
+.chart svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.chart line, .chart polyline { fill: none; vector-effect: non-scaling-stroke; }
+.chart .grid { stroke: var(--line); stroke-width: 1; }
+.chart .zero { stroke: var(--line-2); stroke-width: 1; }
+.ln { stroke-linejoin: round; stroke-linecap: round; }
+.ln-agent  { stroke: var(--pos);      stroke-width: 2.5; }
+.ln-follow { stroke: var(--s-follow); stroke-width: 1.5; stroke-dasharray: 7 5; stroke-linecap: butt; }
+.ln-fade   { stroke: var(--accent-t); stroke-width: 2;   stroke-dasharray: 0.1 5; }
+.ln-none   { stroke: var(--s-none);   stroke-width: 1; }
+.chart-cap { margin-top: 12px; font-size: 0.78rem; color: var(--muted); }
+
+/* ---------- Tables (4, 6). Rows repeat; on phones each row becomes a labelled card. ---------- */
+.tbl { width: 100%; border-collapse: separate; border-spacing: 0 6px; margin-top: 22px; }
+.tbl caption { text-align: left; padding-bottom: 6px; }
+.tbl th, .tbl td { padding: 13px 14px; text-align: right; vertical-align: middle; }
+.tbl th:first-child { text-align: left; }
+.tbl thead th { font: 400 0.58rem/1.4 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); padding-top: 4px; padding-bottom: 4px; }
+.tbl tbody th, .tbl tbody td { background: var(--card); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.tbl tbody th { border-left: 1px solid var(--line); border-radius: var(--r-card) 0 0 var(--r-card); font-weight: 700; }
+.tbl tbody td:last-child { border-right: 1px solid var(--line); border-radius: 0 var(--r-card) var(--r-card) 0; }
+.tbl tbody th small { display: block; font-weight: 500; font-size: 0.78rem; color: var(--muted); }
+.tbl tbody th .key { margin-right: 12px; }
+.tbl tbody th:has(.key) small { margin-left: 36px; }
+.tbl .row-agent th, .tbl .row-agent td { border-color: var(--accent); }
+
+/* ---------- 5. How it got here ---------- */
+.stages { display: grid; gap: 10px; }
+.stage { display: grid; grid-template-columns: 1fr minmax(240px, 360px); gap: 14px 40px; align-items: center; padding: 22px 22px; }
+.stage h3 { font: 400 0.8rem/1.3 var(--display); letter-spacing: 0.05em; text-transform: uppercase; margin: 8px 0 8px; }
+.stage p { color: var(--muted); max-width: 56ch; font-size: 0.88rem; }
+.delta { display: flex; align-items: baseline; gap: 10px; font-variant-numeric: tabular-nums; }
+.delta .before { color: var(--muted); font-size: 0.9rem; }
+.delta .arrow  { color: var(--muted); }
+.delta .after  { font-size: clamp(1.6rem, 3vw, 2.1rem); letter-spacing: -0.02em; line-height: 1; }
+/* Segmented level bar on one shared scale across the stages. */
+.track { position: relative; height: 16px; margin-top: 14px; }
+.track, .track i { -webkit-mask: repeating-linear-gradient(90deg, #000 0 3px, transparent 3px 8px); mask: repeating-linear-gradient(90deg, #000 0 3px, transparent 3px 8px); }
+.track { background: var(--line-2); }
+.track i { position: absolute; top: 0; bottom: 0; -webkit-mask: none; mask: none; }
+.track .pos-bar { background: var(--pos); }
+.track .neg-bar { background: var(--neg); }
+
+/* ---------- 7. Live log ---------- */
+.feed { display: grid; gap: 10px; }
+.entry { display: grid; grid-template-columns: 96px 1fr; gap: 8px 22px; padding: 18px 20px; background: var(--card); border: 1px solid var(--line); border-radius: var(--r-card); }
+.entry > time { font-weight: 700; font-variant-numeric: tabular-nums; font-size: 0.9rem; }
+.entry > time span { display: block; color: var(--muted); font-size: 0.75rem; font-weight: 500; }
+.tag { display: inline-block; padding: 7px 12px; border: 1px solid var(--line-2); border-radius: 6px; font: 400 0.58rem/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.entry[data-action="buy"]  .tag { border-color: var(--pos); background: var(--pos); color: #04130c; }
+.entry[data-action="sell"] .tag { border-color: var(--neg); background: var(--neg); color: #1a0406; }
+.reason { font-size: 1rem; line-height: 1.5; margin-top: 12px; max-width: 64ch; text-wrap: pretty; }
+.saw { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+.saw li { padding: 4px 10px; border-radius: 999px; background: var(--panel); border: 1px solid var(--line); font-weight: 600; white-space: nowrap; }
+.saw b { font-weight: 700; margin-right: 6px; }
+.meta { display: flex; flex-wrap: wrap; gap: 6px 28px; margin-top: 12px; font-size: 0.8rem; }
+.meta div { display: flex; gap: 8px; min-width: 0; }
+.meta dt { color: var(--muted); flex: none; }
+.meta dd { min-width: 0; overflow-wrap: anywhere; }
+.meta dd.id { font-variant-numeric: tabular-nums; font-weight: 600; }
+.meta dd.blocked { color: var(--s-follow); font-weight: 600; }
+.empty { padding: 34px 20px; text-align: center; background: var(--card); border: 1px dashed var(--line-2); border-radius: var(--r-card); font: 400 0.7rem/1.5 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.empty span { display: block; font: 500 0.82rem/1.5 var(--sans); letter-spacing: 0; text-transform: none; margin-top: 6px; }
+.feed:has(.entry) > .empty, .notes:has(.note) > .empty { display: none; }
+
+/* ---------- 8. Morning notes ---------- */
+.notes { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.notes > .empty { grid-column: 1 / -1; }
+.note { padding: 18px 18px 20px; background: var(--card); border: 1px solid var(--line); border-radius: var(--r-card); }
+.note header { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; font-size: 0.75rem; font-weight: 600; color: var(--muted); padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px solid var(--line); }
+.note p { font-size: 0.92rem; line-height: 1.55; }
+
+/* ---------- 9. Footer ---------- */
+footer.panel { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px 28px; padding: 20px 32px; font-size: 0.82rem; color: var(--muted); }
+.foot-id { display: flex; align-items: center; gap: 12px; }
+.foot-id svg { flex: none; width: 24px; height: 24px; }
+footer strong { color: var(--text); font-weight: 600; }
+
+/* ---------- Narrow screens ---------- */
+@media (max-width: 1100px) {
+  .figures { grid-template-columns: repeat(3, 1fr); }
+  .steps { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 900px) {
+  .shell { grid-template-columns: minmax(0, 1fr); padding: 8px; gap: 8px; }
+  main { gap: 8px; }
+  .side { position: static; height: auto; padding: 16px; gap: 14px; overflow: visible; }
+  .nav, .side-foot, .promo .label, .promo p { display: none; }
+  .promo { padding: 0; background: none; border: 0; display: flex; align-items: center; gap: 14px; }
+  .promo strong { margin: 0; font-size: 1.5rem; white-space: nowrap; }
+  .promo .btn { border-radius: 8px; padding: 13px 12px; }
+  section.panel, .hero { padding: 24px 16px 26px !important; }
+  footer.panel { padding: 18px 16px; }
+  .stage { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .motto span { display: block; margin: 6px 0 0; }
+  .figures { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .figure:first-child { grid-column: 1 / -1; }
+  .steps { grid-template-columns: 1fr; gap: 8px; }
+  .step { display: grid; grid-template-columns: 34px 1fr; column-gap: 14px; align-items: start; }
+  .step::before { grid-row: span 2; }
+  .step h3 { margin: 4px 0 6px; }
+  .chart-card { padding: 16px 12px 14px; }
+  .chart { grid-template-columns: 30px 1fr; grid-template-rows: 230px 20px; column-gap: 8px; }
+  .entry { grid-template-columns: 1fr; padding: 16px; }
+  .entry > time span { display: inline; margin-left: 8px; }
+
+  .tbl { border-spacing: 0; }
+  .tbl thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .tbl, .tbl tbody, .tbl tr, .tbl th, .tbl td, .tbl caption { display: block; }
+  .tbl tr { padding: 16px; margin-top: 8px; background: var(--card); border: 1px solid var(--line); border-radius: var(--r-card); }
+  .tbl tr.row-agent { border-color: var(--accent); }
+  .tbl tbody th, .tbl tbody td { border: 0 !important; border-radius: 0 !important; padding: 0; background: none; }
+  .tbl tbody th { margin-bottom: 10px; font-size: 1rem; }
+  .tbl td { display: flex; justify-content: space-between; gap: 16px; padding: 3px 0 !important; }
+  .tbl td::before { content: attr(data-label); font-weight: 500; color: var(--muted); white-space: normal; }
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="logo" viewBox="0 0 48 48">
+<rect class="logo-bg" width="48" height="48" rx="12"/><g class="logo-fg"><path d="M6 24A20 20 0 0 1 42 24A20 20 0 0 1 6 24Z"/></g>
+<g class="logo-bg"><circle cx="24" cy="24" r="8"/></g><g class="logo-fg"><circle cx="26.6" cy="22.4" r="6.4"/></g>
+<g class="logo-dot"><circle cx="26.6" cy="22.4" r="2.7"/></g></symbol></svg>
+<div class="shell">
+<aside class="side panel">
+  <a class="brand" href="#top"><svg aria-hidden="true"><use href="#logo"/></svg>Pervigil</a>
+  <nav class="nav" aria-label="Sections"><a class="on" href="#top">Overview</a><a href="#numbers">Numbers</a><a href="#how">How it works</a><a href="#proving">Proving ground</a><a href="#history">How it got here</a><a href="#hardest">Hardest nights</a><a href="#log">Live log</a><a href="#notes">Morning notes</a></nav>
+  <div class="promo card"><span class="label">55 nights</span><strong class="pos">+5.80%</strong><p>Scored against three fixed rules, earlier losing runs included.</p><a class="btn" href="#proving">Scorecard</a></div>
+  <p class="side-foot"><a href="https://github.com/Milliebanned/pervigil">Code on GitHub</a><br>Paper trading only.</p>
+</aside>
+<main>
+  <div class="top panel"><p class="status"><span class="pill"><i aria-hidden="true"></i>On watch</span><span>US market closed, next decision in 2h · updated 09:57 ET, Sun 4 Oct</span></p><label class="theme"><input type="checkbox" id="theme-switch" aria-label="Use light theme"><span class="label">Light</span></label></div>
+  <section class="panel hero" id="top">
+    <div class="hero-id"><svg aria-hidden="true"><use href="#logo"/></svg><h1>Pervigil</h1></div>
+    <p class="motto" lang="la">Vigilat dum dormis<span lang="en">It keeps watch while you sleep.</span></p>
+    <p class="lede">An AI agent that trades ten big US stocks on Bitget only while the real market is closed, explains every decision in one sentence, and is flat again shortly after the opening bell.</p>
+    <div class="week card"><svg viewBox="0 0 168 10" preserveAspectRatio="none" role="img" aria-label="One week, hour by hour. The US market is open for five short sessions; the rest of the week it is closed."><rect class="closed" width="168" height="10"/><rect class="open" x="9.5" width="6.5" height="10"/><rect class="open" x="33.5" width="6.5" height="10"/><rect class="open" x="57.5" width="6.5" height="10"/><rect class="open" x="81.5" width="6.5" height="10"/><rect class="open" x="105.5" width="6.5" height="10"/><line class="now" x1="153.95" x2="153.95" y1="-3" y2="13"/></svg><ol class="label" aria-hidden="true"><li>Mon</li><li>Tue</li><li>Wed</li><li>Thu</li><li>Fri</li><li>Sat</li><li>Sun</li></ol><p>Purple is when the US stock market is open: 32.5 hours of 168. <b>The other 80% of the week is Pervigil's watch.</b> The green marker is now.</p></div>
+  </section>
+  <section class="panel" id="numbers">
+    <div class="sec-head"><h2>55 nights, replayed</h2></div>
+    <dl class="figures"><div class="figure card"><dt class="label">Return</dt><dd class="big pos">+5.80<small>%</small></dd><dd class="sub">after fees and slippage</dd></div><div class="figure card"><dt class="label">Sharpe</dt><dd class="big">4.32</dd><dd class="sub">return per unit of risk, annualised</dd></div><div class="figure card"><dt class="label">Worst drawdown</dt><dd class="big neg">−0.30<small>%</small></dd><dd class="sub">deepest fall from a peak</dd></div><div class="figure card"><dt class="label">Winning nights</dt><dd class="big">10<small>of 14</small></dd><dd class="sub">it stayed out the other 41</dd></div><div class="figure card"><dt class="label">Risk-rule blocks</dt><dd class="big">0<small>of 33</small></dd><dd class="sub">proposals the hard limits overruled</dd></div></dl><p class="figures-note">A replay of 55 past nights and weekends on real Bitget prices. Paper trading: no real money was at risk.</p>
+  </section>
+  <section class="panel" id="how">
+    <div class="sec-head"><h2>How the watch works</h2><p>The same five steps, every six hours, for as long as the market is closed.</p></div>
+    <ol class="steps"><li class="step card"><h3>Sense</h3><p>Each stock's move since the close, sized against its normal day, plus Bitcoin, earnings and news.</p></li><li class="step card"><h3>Decide</h3><p>Qwen sets a target per stock with a one-sentence reason. Staying out is allowed.</p></li><li class="step card"><h3>Risk layer</h3><p>Hard limits it cannot override: 20% per stock, 60% in total, stop-losses, no late entries.</p></li><li class="step card"><h3>Execute</h3><p>Paper fills at Bitget prices with fees and slippage, mirrored as orders on Bitget's demo exchange.</p></li><li class="step card"><h3>Flatten</h3><p>Everything is closed 15 minutes after the open, and a morning note is written.</p></li></ol>
+  </section>
+  <section class="panel" id="proving">
+    <div class="sec-head"><h2>Proving ground</h2>
+    <p>The agent was replayed over 55 past nights and weekends and scored against three fixed rules that need no intelligence at all. Every strategy sees the same prices, pays the same costs and passes through the same risk limits. The fixed rules act when a stock has moved at least one normal day. Asked the same opening question 3 times on 19 nights, it made the same call on 99% of stock decisions, nearly all of them agreeing to stay out.</p></div>
+    <div class="chart-card card"><ul class="legend"><li><span class="key key-agent"></span>Pervigil <span class="num pos">+5.80%</span></li><li><span class="key key-follow"></span>Always follow <span class="num pos">+3.40%</span></li><li><span class="key key-none"></span>Do nothing <span class="num flat">0.00%</span></li><li><span class="key key-fade"></span>Always fade <span class="num neg">−4.55%</span></li></ul><div class="chart"><div class="y" aria-hidden="true"><span style="top:100.00%">−6%</span><span style="top:83.33%">−4%</span><span style="top:66.67%">−2%</span><span style="top:50.00%">0%</span><span style="top:33.33%">+2%</span><span style="top:16.67%">+4%</span><span style="top:0.00%">+6%</span></div><svg viewBox="0 0 550 200" preserveAspectRatio="none" role="img" aria-label="Account value over 55 nights for the agent and three fixed rules. The figures are in the table below."><line class="grid" x1="0" x2="550" y1="200.0" y2="200.0"/><line class="grid" x1="0" x2="550" y1="166.7" y2="166.7"/><line class="grid" x1="0" x2="550" y1="133.3" y2="133.3"/><line class="zero" x1="0" x2="550" y1="100.0" y2="100.0"/><line class="grid" x1="0" x2="550" y1="66.7" y2="66.7"/><line class="grid" x1="0" x2="550" y1="33.3" y2="33.3"/><line class="grid" x1="0" x2="550" y1="0.0" y2="0.0"/><polyline class="ln ln-none" points="0,100.0 10,100.0 20,100.0 30,100.0 40,100.0 50,100.0 60,100.0 70,100.0 80,100.0 90,100.0 100,100.0 110,100.0 120,100.0 130,100.0 140,100.0 150,100.0 160,100.0 170,100.0 180,100.0 190,100.0 200,100.0 210,100.0 220,100.0 230,100.0 240,100.0 250,100.0 260,100.0 270,100.0 280,100.0 290,100.0 300,100.0 310,100.0 320,100.0 330,100.0 340,100.0 350,100.0 360,100.0 370,100.0 380,100.0 390,100.0 400,100.0 410,100.0 420,100.0 430,100.0 440,100.0 450,100.0 460,100.0 470,100.0 480,100.0 490,100.0 500,100.0 510,100.0 520,100.0 530,100.0 540,100.0 550,100.0"/><polyline class="ln ln-follow" points="0,100.0 10,99.1 20,99.1 30,91.8 40,91.8 50,76.3 60,76.3 70,79.2 80,79.2 90,79.2 100,56.2 110,35.5 120,43.8 130,43.8 140,43.8 150,43.8 160,43.8 170,43.8 180,43.8 190,43.8 200,43.8 210,43.8 220,43.8 230,43.8 240,43.8 250,43.6 260,41.3 270,41.3 280,41.3 290,41.3 300,38.8 310,38.8 320,42.9 330,42.9 340,42.9 350,42.9 360,42.9 370,42.9 380,42.9 390,43.2 400,43.0 410,41.8 420,43.0 430,43.0 440,43.0 450,42.7 460,38.1 470,38.1 480,38.1 490,39.5 500,39.5 510,40.2 520,40.2 530,40.2 540,43.4 550,43.4"/><polyline class="ln ln-fade" points="0,100.0 10,104.9 20,104.9 30,113.2 40,113.2 50,125.3 60,125.3 70,124.4 80,124.4 90,124.4 100,139.1 110,160.0 120,156.2 130,156.2 140,156.2 150,156.2 160,156.2 170,156.2 180,156.2 190,156.2 200,156.2 210,156.2 220,156.2 230,156.2 240,156.2 250,157.4 260,160.5 270,160.5 280,160.5 290,160.5 300,163.8 310,163.8 320,162.0 330,162.0 340,162.0 350,162.0 360,162.0 370,162.0 380,162.0 390,162.6 400,163.7 410,167.8 420,167.6 430,167.6 440,169.5 450,170.7 460,177.9 470,177.9 480,177.9 490,177.5 500,177.5 510,177.8 520,177.8 530,177.8 540,175.9 550,175.9"/><polyline class="ln ln-agent" points="0,100.0 10,100.0 20,100.0 30,92.7 40,92.7 50,63.9 60,63.9 70,63.9 80,63.9 90,63.9 100,45.3 110,13.1 120,15.8 130,15.8 140,15.8 150,15.8 160,15.8 170,15.8 180,15.8 190,15.8 200,15.8 210,15.8 220,15.8 230,15.8 240,15.8 250,15.6 260,13.3 270,13.3 280,18.2 290,18.2 300,8.0 310,8.0 320,8.4 330,8.4 340,8.4 350,8.4 360,8.4 370,8.4 380,8.4 390,8.4 400,8.4 410,8.4 420,8.4 430,8.4 440,8.4 450,7.3 460,4.9 470,4.9 480,4.9 490,4.9 500,4.9 510,4.9 520,4.9 530,4.9 540,3.4 550,3.4"/></svg><div class="x" aria-hidden="true"><span style="left:0%">Start</span><span style="left:18.18%">10</span><span style="left:36.36%">20</span><span style="left:54.55%">30</span><span style="left:72.73%">40</span><span style="left:90.91%">50</span><span style="left:100%">Night 55</span></div></div><p class="chart-cap">Account value after each night, as a change from the starting balance, after costs.</p></div>
+    <table class="tbl"><caption class="label">Scorecard, 55 nights</caption><thead><tr><th scope="col">Strategy</th><th scope="col">Return</th><th scope="col">Sharpe</th><th scope="col">Max drawdown</th><th scope="col">Winning nights</th><th scope="col">Worst night</th><th scope="col">Risk-rule blocks</th></tr></thead><tbody><tr class="row-agent"><th scope="row"><span class="key key-agent" aria-hidden="true"></span>Pervigil<small>the agent</small></th><td data-label="Return"><span class="num pos">+5.80%</span></td><td data-label="Sharpe"><span class="num pos">4.32</span></td><td data-label="Max drawdown"><span class="num neg">−0.30%</span></td><td data-label="Winning nights"><span class="num">10 of 14</span></td><td data-label="Worst night"><span class="num neg">−0.28%</span></td><td data-label="Risk-rule blocks"><span class="num">0 of 33</span></td></tr><tr class="row-follow"><th scope="row"><span class="key key-follow" aria-hidden="true"></span>Always follow<small>bet a big overnight move continues</small></th><td data-label="Return"><span class="num pos">+3.40%</span></td><td data-label="Sharpe"><span class="num pos">3.32</span></td><td data-label="Max drawdown"><span class="num neg">−0.48%</span></td><td data-label="Winning nights"><span class="num">13 of 21</span></td><td data-label="Worst night"><span class="num neg">−0.48%</span></td><td data-label="Risk-rule blocks"><span class="num">0 of 66</span></td></tr><tr class="row-none"><th scope="row"><span class="key key-none" aria-hidden="true"></span>Do nothing<small>stay in cash</small></th><td data-label="Return"><span class="num flat">0.00%</span></td><td data-label="Sharpe"><span class="num flat">—</span></td><td data-label="Max drawdown"><span class="num flat">0.00%</span></td><td data-label="Winning nights"><span class="num flat">—</span></td><td data-label="Worst night"><span class="num flat">0.00%</span></td><td data-label="Risk-rule blocks"><span class="num flat">—</span></td></tr><tr class="row-fade"><th scope="row"><span class="key key-fade" aria-hidden="true"></span>Always fade<small>bet a big overnight move reverses</small></th><td data-label="Return"><span class="num neg">−4.55%</span></td><td data-label="Sharpe"><span class="num neg">−5.35</span></td><td data-label="Max drawdown"><span class="num neg">−4.67%</span></td><td data-label="Winning nights"><span class="num">6 of 21</span></td><td data-label="Worst night"><span class="num neg">−1.29%</span></td><td data-label="Risk-rule blocks"><span class="num">5 of 67</span></td></tr></tbody></table>
+  </section>
+  <section class="panel" id="history"><div class="sec-head"><h2>How it got here</h2><p>The first version lost money. The earlier results stay on this page because a scorecard that only shows the final run is not a scorecard. Every run is in <a href="https://github.com/Milliebanned/pervigil/tree/main/results">the results folder</a>.</p></div><ol class="stages"><li class="stage card"><div><span class="label">Run 1</span><h3>First run</h3><p>The agent as first written. It bet that big overnight moves would reverse, and finished behind doing nothing.</p></div><div><div class="delta"><span class="after num neg">−0.85%</span></div><div class="track" aria-hidden="true"><i class="neg-bar" style="left:0.00%;width:12.74%"></i></div></div></li><li class="stage card"><div><span class="label">Run 2</span><h3>After fixing a data bug</h3><p>The earnings calendar was one night early, so on the night a company reported, the agent was told there was no news. Fixed, with no change to its instructions.</p></div><div><div class="delta"><span class="before num">−0.85%</span><span class="arrow" aria-label="to">&rarr;</span><span class="after num pos">+0.27%</span></div><div class="track" aria-hidden="true"><i class="pos-bar" style="left:12.74%;width:4.14%"></i></div></div></li><li class="stage card"><div><span class="label">Run 3 · current</span><h3>After adding one rule</h3><p>On a night a company has just reported earnings, do not bet against the move. The whole gain comes from four earnings nights, and the rule was written after seeing them, so it is not yet proven on new nights.</p></div><div><div class="delta"><span class="before num">+0.27%</span><span class="arrow" aria-label="to">&rarr;</span><span class="after num pos">+5.80%</span></div><div class="track" aria-hidden="true"><i class="pos-bar" style="left:12.74%;width:87.26%"></i></div></div></li></ol></section>
+  <section class="panel" id="hardest">
+    <div class="sec-head"><h2>The hardest nights</h2><p>The five nights the market moved most while closed, and what each strategy made or lost on them.</p></div>
+    <table class="tbl" style="margin-top:0"><thead><tr><th scope="col">Night</th><th scope="col">Size of move</th><th scope="col">Pervigil</th><th scope="col">Always follow</th><th scope="col">Always fade</th><th scope="col">Do nothing</th></tr></thead><tbody><tr><th scope="row">Fri 31 Jul<small>the night before this open</small></th><td data-label="Size of move"><span class="num">1.68&times; a normal day</span></td><td data-label="Pervigil"><span class="num pos">+1.87%</span></td><td data-label="Always follow"><span class="num pos">+1.21%</span></td><td data-label="Always fade"><span class="num neg">−1.29%</span></td><td data-label="Do nothing"><span class="num flat">0.00%</span></td></tr><tr><th scope="row">Thu 30 Jul<small>the night before this open</small></th><td data-label="Size of move"><span class="num">1.13&times; a normal day</span></td><td data-label="Pervigil"><span class="num pos">+1.09%</span></td><td data-label="Always follow"><span class="num pos">+1.36%</span></td><td data-label="Always fade"><span class="num neg">−0.89%</span></td><td data-label="Do nothing"><span class="num flat">0.00%</span></td></tr><tr><th scope="row">Fri 17 Jul<small>the night before this open</small></th><td data-label="Size of move"><span class="num">0.91&times; a normal day</span></td><td data-label="Pervigil"><span class="num flat">0.00%</span></td><td data-label="Always follow"><span class="num pos">+0.06%</span></td><td data-label="Always fade"><span class="num neg">−0.30%</span></td><td data-label="Do nothing"><span class="num flat">0.00%</span></td></tr><tr><th scope="row">Mon 14 Sep<small>the night before this open</small></th><td data-label="Size of move"><span class="num">0.82&times; a normal day</span></td><td data-label="Pervigil"><span class="num neg">0.00%</span></td><td data-label="Always follow"><span class="num pos">+0.07%</span></td><td data-label="Always fade"><span class="num neg">−0.25%</span></td><td data-label="Do nothing"><span class="num flat">0.00%</span></td></tr><tr><th scope="row">Thu 17 Sep<small>the night before this open</small></th><td data-label="Size of move"><span class="num">0.79&times; a normal day</span></td><td data-label="Pervigil"><span class="num flat">0.00%</span></td><td data-label="Always follow"><span class="num pos">0.00%</span></td><td data-label="Always fade"><span class="num neg">−0.12%</span></td><td data-label="Do nothing"><span class="num flat">0.00%</span></td></tr></tbody></table>
+  </section>
+  <section class="panel" id="log">
+    <div class="sec-head"><h2>Live log</h2><p>7 decisions since Fri 2 Oct, newest first. Most of them are decisions not to trade. <a href="https://github.com/Milliebanned/pervigil/blob/main/logs/paper_log.jsonl">Raw log</a></p></div>
+    <ol class="feed" reversed><li class="empty">No decisions yet tonight<span>The first one appears here after the next check.</span></li><li class="entry" data-action="hold"><time datetime="2026-10-04T08:13:38-04:00">08:13 ET<span>Sun 4 Oct</span></time><div><span class="tag">Stayed out</span><p class="reason">Moves since the cash close are small relative to normal ranges, with no earnings catalyst and only a mild Bitcoin lift, so any expected open edge looks below trading costs.</p><ul class="saw" aria-label="What it saw"><li><b>COIN</b><span class="pos">+1.13%</span></li><li><b>SPY</b><span class="pos">+0.12%</span></li><li><b>AMZN</b><span class="pos">+0.22%</span></li><li><b>TSLA</b><span class="pos">+0.28%</span></li></ul><dl class="meta"><div><dt>Risk layer</dt><dd>Nothing blocked</dd></div></dl></div></li><li class="entry" data-action="hold"><time datetime="2026-10-04T01:40:09-04:00">01:40 ET<span>Sun 4 Oct</span></time><div><span class="tag">Stayed out</span><p class="reason">Moves since the cash close are tiny relative to normal daily ranges, with no earnings catalysts and a long weekend window still ahead. After 0.15% per side in costs, there is no edge in fading or chasing these small rToken drifts.</p><ul class="saw" aria-label="What it saw"><li><b>SPY</b><span class="pos">+0.11%</span></li><li><b>NVDA</b><span class="pos">+0.23%</span></li><li><b>AMZN</b><span class="pos">+0.19%</span></li><li><b>QQQ</b><span class="pos">+0.14%</span></li></ul><dl class="meta"><div><dt>Risk layer</dt><dd>Nothing blocked</dd></div></dl></div></li><li class="entry" data-action="hold"><time datetime="2026-10-03T17:06:20-04:00">17:06 ET<span>Sat 3 Oct</span></time><div><span class="tag">Stayed out</span><p class="reason">Weekend drift is tiny across all names with z-scores well below a normal day and Bitcoin barely positive, so there is no edge worth paying the round-trip cost. Staying flat into the open.</p><ul class="saw" aria-label="What it saw"><li><b>NVDA</b><span class="pos">+0.30%</span></li><li><b>COIN</b><span class="pos">+0.70%</span></li><li><b>SPY</b><span class="pos">+0.08%</span></li><li><b>AMZN</b><span class="pos">+0.13%</span></li></ul><dl class="meta"><div><dt>Risk layer</dt><dd>Nothing blocked</dd></div></dl></div></li><li class="entry" data-action="hold"><time datetime="2026-10-03T12:06:10-04:00">12:06 ET<span>Sat 3 Oct</span></time><div><span class="tag">Stayed out</span><p class="reason">Moves since close are negligible across all names, with z-scores near zero and no earnings catalysts. Trading costs dominate any expected edge, so staying flat is the best decision.</p><ul class="saw" aria-label="What it saw"><li><b>COIN</b><span class="pos">+0.68%</span></li><li><b>GOOGL</b><span class="neg">−0.19%</span></li><li><b>NVDA</b><span class="pos">+0.14%</span></li><li><b>QQQ</b><span class="pos">+0.08%</span></li></ul><dl class="meta"><div><dt>Risk layer</dt><dd>Nothing blocked</dd></div></dl></div></li><li class="entry" data-action="hold"><time datetime="2026-10-03T08:25:49-04:00">08:25 ET<span>Sat 3 Oct</span></time><div><span class="tag">Stayed out</span><p class="reason">All observed moves are modest (≤0.15%) and well below the ~0.30% round‑trip cost; z‑scores are small, so no new positions are justified for this weekend window.</p><ul class="saw" aria-label="What it saw"><li><b>QQQ</b><span class="pos">+0.15%</span></li><li><b>NVDA</b><span class="pos">+0.21%</span></li><li><b>SPY</b><span class="pos">+0.06%</span></li><li><b>COIN</b><span class="pos">+0.47%</span></li></ul><dl class="meta"><div><dt>Risk layer</dt><dd>Nothing blocked</dd></div></dl></div></li><li class="entry" data-action="hold"><time datetime="2026-10-03T02:21:17-04:00">02:21 ET<span>Sat 3 Oct</span></time><div><span class="tag">Stayed out</span><p class="reason">All moves are tiny relative to normal daily volatility and below the 0.30% round‑trip cost threshold. With modest Bitcoin upside and no earnings catalysts, staying flat is the prudent choice.</p><ul class="saw" aria-label="What it saw"><li><b>QQQ</b><span class="pos">+0.14%</span></li><li><b>NVDA</b><span class="pos">+0.08%</span></li><li><b>TSLA</b><span class="pos">+0.13%</span></li><li><b>AMZN</b><span class="pos">+0.06%</span></li></ul><dl class="meta"><div><dt>Risk layer</dt><dd>Nothing blocked</dd></div></dl></div></li><li class="entry" data-action="hold"><time datetime="2026-10-02T18:26:47-04:00">18:26 ET<span>Fri 2 Oct</span></time><div><span class="tag">Stayed out</span><p class="reason">All rToken moves are tiny relative to their typical daily volatility, well below the 0.15% per‑side cost threshold. No earnings or strong macro signal justifies a position, so we stay flat.</p><ul class="saw" aria-label="What it saw"><li><b>SPY</b><span class="neg">−0.10%</span></li><li><b>AMZN</b><span class="neg">−0.16%</span></li><li><b>QQQ</b><span class="neg">−0.08%</span></li><li><b>AAPL</b><span class="neg">−0.10%</span></li></ul><dl class="meta"><div><dt>Risk layer</dt><dd>Nothing blocked</dd></div></dl></div></li></ol>
+  </section>
+  <section class="panel" id="notes">
+    <div class="sec-head"><h2>Morning notes</h2><p>What the agent leaves for whoever was asleep. One per night.</p></div>
+    <ul class="notes"><li class="empty">No notes yet<span>The first note is written after the market next opens.</span></li></ul>
+  </section>
+  <footer class="panel">
+    <p class="foot-id"><svg aria-hidden="true"><use href="#logo"/></svg><span><a href="https://github.com/Milliebanned/pervigil">Code, data and logs on GitHub</a> &nbsp;·&nbsp; Built for the Bitget AI Base Camp Hackathon S2</span></p>
+    <p><strong>Paper trading only. Not financial advice.</strong></p>
+  </footer>
+</main>
+</div>
 <script>
-(function(){var c=document.getElementById('chart');if(!c)return;var d=JSON.parse(document.getElementById('chart-data').textContent);
-var svg=c.querySelector('svg'),cross=c.querySelector('.cross'),tip=c.querySelector('.tip');
-function fmt(v){return (v>=0?'+':'')+(v*100).toFixed(2)+'%'}
-function move(ev){var r=svg.getBoundingClientRect(),k=d.w/r.width,x=((ev.touches?ev.touches[0].clientX:ev.clientX)-r.left)*k;
-var i=Math.round((x-d.l)/(d.pw)*(d.n-1));i=Math.max(0,Math.min(d.n-1,i));var px=d.l+(d.n>1?i/(d.n-1):0)*d.pw;
-cross.setAttribute('x1',px);cross.setAttribute('x2',px);cross.style.visibility='visible';
-var h='<div style="color:var(--mute)">'+d.dates[i]+' open</div>';d.series.forEach(function(s){h+='<div><i style="background:var(--'+s.c+')"></i>'+s.name+' <b>'+fmt(s.v[i])+'</b></div>'});
-tip.innerHTML=h;tip.style.visibility='visible';var left=px/k+12;if(left+tip.offsetWidth>r.width)left=px/k-tip.offsetWidth-12;tip.style.left=Math.max(0,left)+'px';tip.style.top='8px'}
-function out(){cross.style.visibility='hidden';tip.style.visibility='hidden'}
-svg.addEventListener('mousemove',move);svg.addEventListener('touchstart',move,{passive:true});svg.addEventListener('touchmove',move,{passive:true});svg.addEventListener('mouseleave',out)})();
-</script></body></html>
+(function () {
+  var links = [].slice.call(document.querySelectorAll('.nav a'));
+  if (!('IntersectionObserver' in window)) return;
+  var io = new IntersectionObserver(function (es) {
+    es.forEach(function (e) {
+      if (e.isIntersecting) links.forEach(function (l) { l.classList.toggle('on', l.hash === '#' + e.target.id); });
+    });
+  }, { rootMargin: '-25% 0px -65% 0px' });
+  links.forEach(function (l) { var t = document.querySelector(l.hash); if (t) io.observe(t); });
+})();
+</script>
+</body>
+</html>
