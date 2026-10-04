@@ -308,3 +308,5 @@ footer strong { color: var(--text); font-weight: 600; }
 .facts dd { font-size: 0.9rem; line-height: 1.5; }
 .facts dd b { font-size: 1.25rem; font-variant-numeric: tabular-nums; display: block; margin-bottom: 2px; }
 @media (max-width: 640px) { .pair { grid-template-columns: 1fr; } }
+.facts.stack { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.facts.stack dd b { font-size: 1.05rem; margin-bottom: 6px; }

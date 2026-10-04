@@ -321,6 +321,8 @@ footer strong { color: var(--text); font-weight: 600; }
 .facts dd { font-size: 0.9rem; line-height: 1.5; }
 .facts dd b { font-size: 1.25rem; font-variant-numeric: tabular-nums; display: block; margin-bottom: 2px; }
 @media (max-width: 640px) { .pair { grid-template-columns: 1fr; } }
+.facts.stack { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.facts.stack dd b { font-size: 1.05rem; margin-bottom: 6px; }
 </style>
 </head>
 <body>
@@ -331,7 +333,7 @@ footer strong { color: var(--text); font-weight: 600; }
 <div class="shell">
 <aside class="side panel">
   <a class="brand" href="index.html"><svg aria-hidden="true"><use href="#logo"/></svg>Pervigil</a>
-  <nav class="nav" aria-label="Sections"><a class="on" href="#top">What it is</a><a href="#problem">The problem</a><a href="#answer">The answer</a><a href="#cycle">One decision</a><a href="#rules">The rule book</a><a href="#proof">Is it any good</a><a href="#run">Run your own</a><a href="#limits">Limits</a></nav>
+  <nav class="nav" aria-label="Sections"><a class="on" href="#top">What it is</a><a href="#problem">The problem</a><a href="#answer">The answer</a><a href="#cycle">One decision</a><a href="#stack">Built on</a><a href="#rules">The rule book</a><a href="#proof">Is it any good</a><a href="#run">Run your own</a><a href="#limits">Limits</a></nav>
   <a class="btn docs" href="index.html">See it live</a>
   <p class="side-foot"><a href="https://github.com/Milliebanned/pervigil">Code on GitHub</a><br>Paper trading only.</p>
 </aside>
@@ -377,6 +379,23 @@ footer strong { color: var(--text); font-weight: 600; }
       <li><b>Flatten.</b> 15 minutes after the market opens, everything is closed and a
       short morning note is written for the human.</li>
     </ol></div></section>
+  <section class="panel" id="stack"><div class="sec-head"><h2>What it is built on</h2></div><div class="prose">
+    <p>Pervigil is assembled from the tools this hackathon put on the table. Each one does a specific job.</p>
+    <dl class="facts stack">
+      <div class="card"><dt class="label">The brain</dt><dd><b>Qwen 3.8 Max</b>Alibaba Cloud's model, called through the
+      hackathon gateway. It makes every trading decision and writes the morning note. 334 of its answers
+      are saved in the repository, so the replay can be re-scored without calling it again.</dd></div>
+      <div class="card"><dt class="label">The prices</dt><dd><b>Bitget market data</b>15-minute candles for ten stock
+      tokens and Bitcoin, from Bitget's public API. The replay and the live agent read the same feed.</dd></div>
+      <div class="card"><dt class="label">The calendar</dt><dd><b>Bitget MCP server</b>The earnings calendar and the
+      market headlines the live agent reads, from <code>agent.bitget.com/mcp</code>.</dd></div>
+      <div class="card"><dt class="label">The news</dt><dd><b>Chainbase AgentKey</b>Company news for the stocks that have
+      moved at least half a normal day, so the agent can tell a move with a cause from one without.</dd></div>
+      <div class="card"><dt class="label">The orders</dt><dd><b>Bitget demo exchange</b>Every position is placed as a
+      market order through the unified account API, and the order number is written to the live log.</dd></div>
+      <div class="card"><dt class="label">The clock</dt><dd><b>GitHub Actions</b>Wakes the agent every hour, commits
+      its log, and rebuilds this site. Nobody presses anything.</dd></div>
+    </dl></div></section>
   <section class="panel" id="rules"><div class="sec-head"><h2>The rule book</h2></div><div class="prose">
     <p>These limits are ordinary code, not instructions to the AI. The model cannot talk its way past them.</p>
     <dl class="facts">

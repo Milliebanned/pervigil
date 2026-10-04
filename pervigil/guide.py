@@ -1,10 +1,20 @@
 """The docs page (docs/guide.html): a short plain-English explanation of the project. Built by site.build()."""
-from . import paper, risk
+import glob
+import json
+import os
+
+from . import llm, paper, risk
 from .data import STOCKS
 from .replay import EXIT_AFTER_OPEN_MS, STEP_H
 
 NAV = [("top", "What it is"), ("problem", "The problem"), ("answer", "The answer"), ("cycle", "One decision"),
-       ("rules", "The rule book"), ("proof", "Is it any good"), ("run", "Run your own"), ("limits", "Limits")]
+       ("stack", "Built on"), ("rules", "The rule book"), ("proof", "Is it any good"), ("run", "Run your own"), ("limits", "Limits")]
+
+
+def qwen_calls():
+    """Answers from the Qwen model saved in the replay cache."""
+    return sum(json.load(open(p)).get("model", "").startswith("qwen")
+               for p in glob.glob(os.path.join(llm.CACHE_DIR, "*", "*.json")))
 
 
 def section(i, title, body):
@@ -57,6 +67,24 @@ def build(card):
       <li><b>Flatten.</b> {EXIT_AFTER_OPEN_MS // 60000} minutes after the market opens, everything is closed and a
       short morning note is written for the human.</li>
     </ol>"""
+
+    stack = f"""
+    <p>Pervigil is assembled from the tools this hackathon put on the table. Each one does a specific job.</p>
+    <dl class="facts stack">
+      <div class="card"><dt class="label">The brain</dt><dd><b>Qwen 3.8 Max</b>Alibaba Cloud's model, called through the
+      hackathon gateway. It makes every trading decision and writes the morning note. {qwen_calls()} of its answers
+      are saved in the repository, so the replay can be re-scored without calling it again.</dd></div>
+      <div class="card"><dt class="label">The prices</dt><dd><b>Bitget market data</b>15-minute candles for ten stock
+      tokens and Bitcoin, from Bitget's public API. The replay and the live agent read the same feed.</dd></div>
+      <div class="card"><dt class="label">The calendar</dt><dd><b>Bitget MCP server</b>The earnings calendar and the
+      market headlines the live agent reads, from <code>agent.bitget.com/mcp</code>.</dd></div>
+      <div class="card"><dt class="label">The news</dt><dd><b>Chainbase AgentKey</b>Company news for the stocks that have
+      moved at least half a normal day, so the agent can tell a move with a cause from one without.</dd></div>
+      <div class="card"><dt class="label">The orders</dt><dd><b>Bitget demo exchange</b>Every position is placed as a
+      market order through the unified account API, and the order number is written to the live log.</dd></div>
+      <div class="card"><dt class="label">The clock</dt><dd><b>GitHub Actions</b>Wakes the agent every hour, commits
+      its log, and rebuilds this site. Nobody presses anything.</dd></div>
+    </dl>"""
 
     rules = f"""
     <p>These limits are ordinary code, not instructions to the AI. The model cannot talk its way past them.</p>
@@ -119,6 +147,7 @@ def build(card):
   {section("problem", "The problem", problem)}
   {section("answer", "The answer", answer)}
   {section("cycle", "One decision, step by step", cycle)}
+  {section("stack", "What it is built on", stack)}
   {section("rules", "The rule book", rules)}
   {section("proof", "Is it any good", proof)}
   {section("run", "Run your own", run)}
