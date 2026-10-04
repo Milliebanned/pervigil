@@ -129,7 +129,7 @@ def build():
     results = {}
     for p in sorted(glob.glob(os.path.join(RESULTS, "*.json"))):
         name = os.path.basename(p)[:-5]
-        if name != "scorecard":
+        if name not in ("scorecard", "lab"):
             results[name] = json.load(open(p))
     repeats = [results.pop(n) for n in sorted(results) if n.startswith("consistency_run")]
     card = {"policies": {n: metrics(r) for n, r in results.items()}}

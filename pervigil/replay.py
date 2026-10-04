@@ -3,6 +3,7 @@
     python -m pervigil.replay rules            # the three fixed-rule baselines
     python -m pervigil.replay agent            # the LLM agent, full pass
     python -m pervigil.replay consistency [n]  # n repeat passes of each night's opening decision (default 2)
+    python -m pervigil.replay lab              # every fixed rule the page's "beat the agent" sliders can reach
 
 At each step the policy sees only candles that had closed by that moment (see features.Market.price_at).
 """
@@ -90,20 +91,46 @@ def sessions_for(candles):
     return [s for s in closed_sessions(lo, hi) if s.open_ms + EXIT_AFTER_OPEN_MS <= min(ends) + STEP_MS]
 
 
-def run(policy, name, candles=None, step_h=STEP_H, earnings=None, progress=False, first_only=False, every=1):
-    """first_only: only the opening decision of each session. every: take every n-th session."""
+def run(policy, name, candles=None, step_h=STEP_H, earnings=None, progress=False, first_only=False, every=1,
+        only=None, save=True):
+    """first_only: only the opening decision of each session. every: take every n-th session.
+    only: restrict to these session ids. save: write results/<name>.json."""
     candles = candles or load_all()
     market, book, out = Market(candles), Book(), []
-    for s in sessions_for(candles)[::every]:
+    for s in [s for s in sessions_for(candles) if only is None or s.id in only][::every]:
         if first_only:
             book = Book()   # each opening decision starts flat at the same equity, as in the full pass
         out.append(run_session(policy, market, s, book, step_h, earnings, first_only))
         if progress:
             print(f"{name} {s.id} {s.kind:9} ret={out[-1]['ret']:+.3%} equity={out[-1]['end_equity']:.0f}", flush=True)
     result = {"policy": name, "step_h": step_h, "traded": book.traded, "costs": book.costs, "sessions": out}
-    os.makedirs(RESULTS, exist_ok=True)
-    json.dump(result, open(os.path.join(RESULTS, f"{name}.json"), "w"))
+    if save:
+        os.makedirs(RESULTS, exist_ok=True)
+        json.dump(result, open(os.path.join(RESULTS, f"{name}.json"), "w"))
     return result
+
+
+LAB = {"z": [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0], "size": [0.05, 0.10, 0.15, 0.20],
+       "nights": ["all", "earnings", "quiet"], "sign": [1, -1]}
+
+
+def lab(candles, earnings):
+    """Replay every rule on the LAB grid over the nights the agent was scored on, through the same risk layer
+    and paper book. -> results/lab.json: per-night returns in millionths, keyed "sign|z|size|nights"."""
+    agent = json.load(open(os.path.join(RESULTS, "agent_run0.json")))
+    ids = [s["session"] for s in agent["sessions"]]
+    runs = {}
+    for sign in LAB["sign"]:
+        for z in LAB["z"]:
+            for size in LAB["size"]:
+                for nights in LAB["nights"]:
+                    r = run(policies.rule(sign, z, size, nights), "lab", candles, earnings=earnings, only=set(ids),
+                            save=False)
+                    assert [s["session"] for s in r["sessions"]] == ids
+                    runs[f"{sign}|{z}|{size}|{nights}"] = [round(s["ret"] * 1e6) for s in r["sessions"]]
+    out = {"sessions": ids, "grid": LAB, "agent": [round(s["ret"] * 1e6) for s in agent["sessions"]], "runs": runs}
+    json.dump(out, open(os.path.join(RESULTS, "lab.json"), "w"), separators=(",", ":"))
+    return out
 
 
 def warm(policy, name, candles, earnings=None, first_only=False, every=1):
@@ -147,6 +174,8 @@ def main(argv):
             warm(policies.make_agent(run=i), f"consistency_run{i}", candles, earnings, first_only=True, every=3)
             run(policies.make_agent(run=i), f"consistency_run{i}", candles, earnings=earnings, progress=True,
                 first_only=True, every=3)
+    elif what == "lab":
+        print(len(lab(candles, earnings)["runs"]), "rules replayed")
     else:
         raise SystemExit(__doc__)
 

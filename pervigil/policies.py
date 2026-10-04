@@ -12,22 +12,28 @@ def do_nothing(snap, weights):
     return {}, {}, ""
 
 
-def _rule(sign):
+def rule(sign, z=RULE_Z, size=RULE_SIZE, nights="all"):
+    """Fixed rule: when a name has moved at least `z` normal days, take `size` with (+1) or against (-1) the move.
+
+    nights: "all", "earnings" (only names that have just reported) or "quiet" (never those names).
+    """
     def policy(snap, weights):
         targets, reasons = {}, {}
         for t, f in snap["names"].items():
-            if abs(f["z"]) >= RULE_Z:
-                targets[t] = sign * RULE_SIZE * (1 if f["z"] > 0 else -1)
+            reported = "released" in (f["earnings"] or "")
+            allowed = nights == "all" or (nights == "earnings") == reported
+            if allowed and abs(f["z"]) >= z:
+                targets[t] = sign * size * (1 if f["z"] > 0 else -1)
                 reasons[t] = f"z={f['z']:+.2f}"
             elif weights.get(t):
                 targets[t] = 0.0
-                reasons[t] = "move back inside one normal day"
+                reasons[t] = "move back inside the threshold"
         return targets, reasons, ""
     return policy
 
 
-always_fade = _rule(-1)     # bet the closed-hours move reverses
-always_follow = _rule(+1)   # bet the closed-hours move continues
+always_fade = rule(-1)     # bet the closed-hours move reverses
+always_follow = rule(+1)   # bet the closed-hours move continues
 
 SYSTEM = """You are Pervigil, an autonomous trading agent for tokenized US stocks (rTokens) on Bitget.
 You only act while the US cash market is CLOSED. During these hours the rToken price is the market's
