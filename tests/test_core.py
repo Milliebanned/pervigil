@@ -121,5 +121,27 @@ class Risk(unittest.TestCase):
         self.assertEqual(self.book.qty, {})
 
 
+class Exchange(unittest.TestCase):
+    """Orders that reconcile the demo account to the paper book."""
+    px = {"AAPL": 300.0, "NVDA": 200.0, "MSFT": 500.0}
+
+    def test_open_add_and_reduce(self):
+        from pervigil.exchange import plan
+        self.assertEqual(plan({"AAPL": 1.504}, {}, self.px), [("AAPL", 1.5, False)])
+        self.assertEqual(plan({"AAPL": 2.0}, {"AAPL": 1.5}, self.px), [("AAPL", 0.5, False)])
+        self.assertEqual(plan({"AAPL": -0.5}, {"AAPL": -1.5}, self.px), [("AAPL", 1.0, True)])
+
+    def test_close_and_flip(self):
+        from pervigil.exchange import plan
+        self.assertEqual(plan({}, {"NVDA": -2.0}, self.px), [("NVDA", 2.0, True)])
+        self.assertEqual(plan({"NVDA": 1.0}, {"NVDA": -2.0}, self.px), [("NVDA", 2.0, True), ("NVDA", 1.0, False)])
+
+    def test_skips_unlisted_names_and_dust(self):
+        from pervigil.exchange import plan
+        self.assertEqual(plan({"MSFT": 3.0}, {}, self.px), [])             # no MSFT perpetual on the demo exchange
+        self.assertEqual(plan({"AAPL": 1.01}, {"AAPL": 1.0}, self.px), [])  # 3 USDT, under the exchange minimum
+        self.assertEqual(plan({"AAPL": 1.0}, {"AAPL": 1.0}, self.px), [])
+
+
 if __name__ == "__main__":
     unittest.main()

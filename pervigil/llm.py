@@ -67,11 +67,13 @@ def chat(system, user, run=0, temperature=0.2, use_cache=True):
     err = None
     for i in range(30):   # rides out rate limits and network drops of up to ~25 minutes
         try:
-            with urllib.request.urlopen(req, timeout=90) as r:
-                text = json.load(r)["choices"][0]["message"]["content"]
+            with urllib.request.urlopen(req, timeout=300) as r:   # reasoning models can think for minutes
+                reply = json.load(r)
+            text = reply["choices"][0]["message"]["content"]
             if use_cache:
                 os.makedirs(os.path.dirname(path), exist_ok=True)
-                json.dump({"model": cfg["LLM_MODEL"], "run": run, "text": text}, open(path, "w"))
+                json.dump({"model": cfg["LLM_MODEL"], "run": run, "text": text, "usage": reply.get("usage")},
+                          open(path, "w"))
             return text
         except urllib.error.HTTPError as e:
             err = RuntimeError(f"HTTP {e.code}: {e.read()[:300]!r}")

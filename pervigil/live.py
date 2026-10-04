@@ -4,13 +4,14 @@
 
 It uses the same snapshot, policy, risk layer, paper book and decision schedule as the proving ground,
 plus live headlines. State lives in state/book.json; every action is appended to logs/paper_log.jsonl.
+When a Bitget demo key is set, each position is also placed as a real order on the demo exchange (exchange.py).
 """
 import json
 import os
 import time
 from datetime import datetime, timezone
 
-from . import context, llm, policies, risk
+from . import context, exchange, llm, policies, risk
 from .data import STEP_MS, STOCKS, update_all
 from .features import Market
 from .paper import Book
@@ -71,12 +72,33 @@ def morning_note(session_id, ret, equity):
         f.write(f"# Morning note — {session_id} open\n\n{summary}\n\n{body}\n")
 
 
+NEWS_Z = 0.5      # only names that have moved at least half a normal day get their own news lookup
+NEWS_NAMES = 4
+
+
 def headlines_fn(snap):
+    """Company news for the names that are moving (AgentKey), then Bitget's general market feed."""
+    out = []
+    movers = sorted((t for t, f in snap["names"].items() if abs(f["z"]) >= NEWS_Z),
+                    key=lambda t: -abs(snap["names"][t]["z"]))[:NEWS_NAMES]
+    close_ms = snap["t"] - int(snap["hours_since_close"] * 3_600_000)
+    for name, fetch in (("stock news", lambda: context.stock_news(movers, close_ms, snap["t"])),
+                        ("market headlines", context.headlines)):
+        try:
+            out += fetch()
+        except Exception as e:
+            print(f"({name} unavailable: {e})")
+    return out or None
+
+
+def mirror(book, prices, now_ms, session_id):
+    """Bring the Bitget demo account in line with the paper book. Never lets an exchange error stop the run."""
     try:
-        return context.headlines()
+        orders = exchange.sync(book.qty, prices)
     except Exception as e:
-        print(f"(headlines unavailable: {e})")
-        return None
+        orders = [{"error": str(e)[:300]}]
+    if orders:
+        log("exchange_orders", now_ms, session=session_id, venue="Bitget demo futures", orders=orders)
 
 
 def run(now_ms=None):
@@ -100,6 +122,7 @@ def run(now_ms=None):
         log("session_exit", now_ms, session=old["id"], fills=fills, equity=round(equity, 2), ret=ret)
         state.update(book=book.to_dict(), session=None, risk=None)
         save_state(state)
+        mirror(book, prices, now_ms, old["id"])
         morning_note(old["id"], ret, equity)
 
     if session is None:
@@ -140,6 +163,7 @@ def run(now_ms=None):
     state["session"]["last_prices"] = prices
     state.update(book=book.to_dict(), risk=srisk.to_dict())
     save_state(state)
+    mirror(book, prices, now_ms, session.id)
 
 
 if __name__ == "__main__":

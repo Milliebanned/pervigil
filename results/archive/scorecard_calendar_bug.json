@@ -1,0 +1,162 @@
+{
+ "policies": {
+  "agent_run0": {
+   "sessions": 55,
+   "sessions_traded": 15,
+   "total_return": -0.00846361220685099,
+   "sharpe": -2.030661808259128,
+   "sortino": -2.429657231028326,
+   "max_drawdown": -0.015599075878175994,
+   "win_rate": 0.4,
+   "worst_session": -0.005418157827234205,
+   "turnover_per_session": 0.0623753020415898,
+   "costs_pct": 0.005145961589018287,
+   "sharpe_first_two_thirds": -3.446910732384322,
+   "sharpe_last_third": 6.276361255617932,
+   "decisions": 257,
+   "proposals": 35,
+   "risk_violations": 3,
+   "risk_violation_rate": 0.08571428571428572,
+   "violations_by_rule": {
+    "stopped_out_name": 3
+   },
+   "invalid_outputs": 0,
+   "stops_fired": 4,
+   "sessions_halted": 0
+  },
+  "always_fade": {
+   "sessions": 55,
+   "sessions_traded": 21,
+   "total_return": -0.0455303528719504,
+   "sharpe": -5.34713387851176,
+   "sortino": -5.1696924472638495,
+   "max_drawdown": -0.04673269910972533,
+   "win_rate": 0.2857142857142857,
+   "worst_session": -0.012859214728549007,
+   "turnover_per_session": 0.13798871737681187,
+   "costs_pct": 0.011384060647013479,
+   "sharpe_first_two_thirds": -5.607836922368324,
+   "sharpe_last_third": -5.949488500249139,
+   "decisions": 257,
+   "proposals": 67,
+   "risk_violations": 5,
+   "risk_violation_rate": 0.07462686567164178,
+   "violations_by_rule": {
+    "stopped_out_name": 5
+   },
+   "invalid_outputs": 0,
+   "stops_fired": 4,
+   "sessions_halted": 0
+  },
+  "always_follow": {
+   "sessions": 55,
+   "sessions_traded": 21,
+   "total_return": 0.033965904086428855,
+   "sharpe": 3.3155781096282895,
+   "sortino": 11.979874010175756,
+   "max_drawdown": -0.004788822772682111,
+   "win_rate": 0.6190476190476191,
+   "worst_session": -0.004788822772682,
+   "turnover_per_session": 0.14549845213120555,
+   "costs_pct": 0.012003633793208481,
+   "sharpe_first_two_thirds": 4.225316965725631,
+   "sharpe_last_third": -0.30335757591033136,
+   "decisions": 257,
+   "proposals": 66,
+   "risk_violations": 0,
+   "risk_violation_rate": 0.0,
+   "violations_by_rule": {},
+   "invalid_outputs": 0,
+   "stops_fired": 1,
+   "sessions_halted": 0
+  },
+  "do_nothing": {
+   "sessions": 55,
+   "sessions_traded": 0,
+   "total_return": 0.0,
+   "sharpe": 0.0,
+   "sortino": 0.0,
+   "max_drawdown": 0.0,
+   "win_rate": null,
+   "worst_session": 0.0,
+   "turnover_per_session": 0.0,
+   "costs_pct": 0.0,
+   "sharpe_first_two_thirds": 0.0,
+   "sharpe_last_third": 0.0,
+   "decisions": 257,
+   "proposals": 0,
+   "risk_violations": 0,
+   "risk_violation_rate": 0.0,
+   "violations_by_rule": {},
+   "invalid_outputs": 0,
+   "stops_fired": 0,
+   "sessions_halted": 0
+  }
+ },
+ "consistency": {
+  "passes": 3,
+  "nights_compared": 19,
+  "name_decisions_compared": 190,
+  "agreement": 0.9894736842105263,
+  "agreement_when_any_pass_traded": 0.0
+ },
+ "stress": [
+  {
+   "session": "2026-07-31",
+   "avg_abs_z": 1.6760000000000002,
+   "agent_run0": -0.005418157827234205,
+   "always_fade": -0.012859214728549007,
+   "always_follow": 0.01209069084339176,
+   "do_nothing": 0.0
+  },
+  {
+   "session": "2026-07-30",
+   "avg_abs_z": 1.131,
+   "agent_run0": -0.0016643799114011149,
+   "always_fade": -0.008908814453492564,
+   "always_follow": 0.01361248588403341,
+   "do_nothing": 0.0
+  },
+  {
+   "session": "2026-07-17",
+   "avg_abs_z": 0.907,
+   "agent_run0": 0.0,
+   "always_fade": -0.0029624481632356536,
+   "always_follow": 0.000568284426321064,
+   "do_nothing": 0.0
+  },
+  {
+   "session": "2026-09-14",
+   "avg_abs_z": 0.825,
+   "agent_run0": -3.7812617770027757e-05,
+   "always_fade": -0.0025172968292348497,
+   "always_follow": 0.0007241908216684134,
+   "do_nothing": 0.0
+  },
+  {
+   "session": "2026-09-17",
+   "avg_abs_z": 0.789,
+   "agent_run0": 0.0,
+   "always_fade": -0.0012404897856728159,
+   "always_follow": 3.880508574427566e-05,
+   "do_nothing": 0.0
+  }
+ ],
+ "value_added": {
+  "always_fade": {
+   "total_return": 0.03706674066509941,
+   "sharpe": 3.316472070252632,
+   "max_drawdown": 0.031133623231549334
+  },
+  "always_follow": {
+   "total_return": -0.042429516293279845,
+   "sharpe": -5.346239917887417,
+   "max_drawdown": -0.010810253105493883
+  },
+  "do_nothing": {
+   "total_return": -0.00846361220685099,
+   "sharpe": -2.030661808259128,
+   "max_drawdown": -0.015599075878175994
+  }
+ }
+}

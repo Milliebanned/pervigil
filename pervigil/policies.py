@@ -62,6 +62,11 @@ def render(snap, weights, headlines=None):
         last = f"{f['last_hour']:+.2%}" if f["last_hour"] is not None else "n/a"
         lines.append(f"{t} | {f['move']:+.2%} | {f['normal_day']:.2%} | {f['z']:+.2f} | {last} | "
                      f"{f['earnings'] or '-'} | {weights.get(t, 0.0):+.2f}")
+    if any("released" in (f["earnings"] or "") for f in snap["names"].values()):
+        # Added after the first proving-ground run, where the agent lost by fading post-earnings gaps.
+        lines += ["", "Desk note: a name marked 'earnings released after the last close' is moving on real news, "
+                      "not noise. Post-earnings moves tend to carry into the open. Do not fade them: "
+                      "trade with the move or stay out."]
     if headlines:
         lines += ["", "Headlines:"] + [f"- {h}" for h in headlines]
     return "\n".join(lines)

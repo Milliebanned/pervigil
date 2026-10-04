@@ -9,6 +9,7 @@ At each step the policy sees only candles that had closed by that moment (see fe
 import json
 import os
 import sys
+from concurrent.futures import ThreadPoolExecutor
 
 from . import policies, risk
 from .data import STEP_MS, STOCKS, load_all, rtoken
@@ -105,6 +106,24 @@ def run(policy, name, candles=None, step_h=STEP_H, earnings=None, progress=False
     return result
 
 
+def warm(policy, name, candles, earnings=None, first_only=False, every=1):
+    """Fill the LLM cache for all sessions at once, LLM_WORKERS at a time (default 1 = skip).
+
+    Every session starts flat and the agent is shown weights, not dollars, so the ordered pass that
+    follows asks the same questions and reads the answers from the cache.
+    """
+    workers = int(os.environ.get("LLM_WORKERS", 1))
+    if workers < 2:
+        return
+    market = Market(candles)
+
+    def one(s):
+        run_session(policy, market, s, Book(), STEP_H, earnings, first_only)
+        print(f"{name} warmed {s.id}", flush=True)
+    with ThreadPoolExecutor(workers) as ex:
+        list(ex.map(one, sessions_for(candles)[::every]))
+
+
 def main(argv):
     what = argv[1] if len(argv) > 1 else "rules"
     candles = load_all()
@@ -120,10 +139,12 @@ def main(argv):
             r = run(pol, name, candles, earnings=earnings)
             print(name, len(r["sessions"]), "sessions, final equity", round(r["sessions"][-1]["end_equity"], 2))
     elif what == "agent":
+        warm(policies.make_agent(run=0), "agent_run0", candles, earnings)
         run(policies.make_agent(run=0), "agent_run0", candles, earnings=earnings, progress=True)
     elif what == "consistency":
         # Repeat passes of the opening decision on every 3rd night, to measure how stable the agent's call is.
         for i in range(1, 1 + (int(argv[2]) if len(argv) > 2 else 2)):
+            warm(policies.make_agent(run=i), f"consistency_run{i}", candles, earnings, first_only=True, every=3)
             run(policies.make_agent(run=i), f"consistency_run{i}", candles, earnings=earnings, progress=True,
                 first_only=True, every=3)
     else:

@@ -72,7 +72,9 @@ def fetch_earnings(start="2026-06-01", end="2026-12-31"):
                 if is_trading_day(d):
                     out[tk][d.isoformat()] = "earnings due before this open"
             else:                                        # after the close (or unspecified)
-                out[tk][_next_trading_day(d).isoformat()] = "earnings released after the last close"
+                # The feed dates an after-close release one trading day early: on all 8 releases in the
+                # replay window the price gapped in the session after _next_trading_day(d), never in it.
+                out[tk][_next_trading_day(_next_trading_day(d)).isoformat()] = "earnings released after the last close"
     os.makedirs(os.path.dirname(EARNINGS_PATH), exist_ok=True)
     json.dump(out, open(EARNINGS_PATH, "w"), indent=1, sort_keys=True)
     return out
@@ -92,6 +94,51 @@ def headlines(limit=3, chars=700):
     """Latest items from Bitget's news feed, as plain text. Live use only."""
     rows = Mcp().query("news_label_search", {"label": 1, "page_size": limit})
     return [f"{_plain(r.get('title'))}: {_plain(r.get('content'))[:chars]}" for r in rows[:limit]]
+
+
+# --- Per-stock news through Chainbase AgentKey (optional; needs AGENTKEY_API_KEY) -------------------------
+
+AGENTKEY_URL = "https://api.agentkey.app/v1/mcp"
+COMPANY = {"NVDA": "nvidia", "TSLA": "tesla", "AAPL": "apple", "MSFT": "microsoft", "AMZN": "amazon",
+           "GOOGL": "alphabet|google", "META": "meta", "COIN": "coinbase"}
+
+
+def _agentkey(key, payload, sid=None):
+    head = {**HEAD, "Authorization": f"Bearer {key}", **({"Mcp-Session-Id": sid} if sid else {})}
+    req = urllib.request.Request(AGENTKEY_URL, data=json.dumps(payload).encode(), headers=head)
+    with urllib.request.urlopen(req, timeout=40) as r:
+        return r.headers.get("mcp-session-id"), r.read().decode()
+
+
+def stock_news(tickers, since_ms, until_ms, per=2, chars=220):
+    """Headlines about each ticker published inside [since, until], newest first. -> ["NVDA (Yahoo): ...", ...]
+
+    Finnhub company news via AgentKey. The feed tags loosely, so only items naming the company are kept.
+    """
+    key = os.environ.get("AGENTKEY_API_KEY")
+    if not key:
+        return []
+    sid, _ = _agentkey(key, {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {
+        "protocolVersion": "2025-03-26", "capabilities": {}, "clientInfo": {"name": "pervigil", "version": "1.0"}}})
+    _agentkey(key, {"jsonrpc": "2.0", "method": "notifications/initialized"}, sid)
+    day = lambda ms: date.fromtimestamp(ms / 1000).isoformat()
+    out = []
+    for n, tk in enumerate(t for t in tickers if t in COMPANY):
+        _, body = _agentkey(key, {"jsonrpc": "2.0", "id": 2 + n, "method": "tools/call", "params": {
+            "name": "execute_tool", "arguments": {"name": "Finnhub/companyNews", "params": {
+                "symbol": tk, "from": day(since_ms), "to": day(until_ms)}}}}, sid)
+        rows = []
+        for line in body.splitlines():
+            line = line[6:] if line.startswith("data: ") else line
+            if line.startswith("{") and "result" in line:
+                rows = json.loads(json.loads(line)["result"]["content"][0]["text"]).get("data") or []
+        named = re.compile(rf"\b({tk}|{COMPANY[tk]})\b", re.I)
+        hits = [r for r in rows if since_ms <= r.get("datetime", 0) * 1000 <= until_ms
+                and named.search(f"{r.get('headline')} {r.get('summary')}")]
+        hits.sort(key=lambda r: -r["datetime"])
+        out += [f"{tk} ({r.get('source')}): {_plain(r.get('headline'))}. {_plain(r.get('summary'))[:chars]}"
+                for r in hits[:per]]
+    return out
 
 
 if __name__ == "__main__":

@@ -1,5 +1,27 @@
 {
  "policies": {
+  "agent_run0": {
+   "sessions": 55,
+   "sessions_traded": 14,
+   "total_return": 0.057955582373930614,
+   "sharpe": 4.319611018727772,
+   "sortino": 37.750160635596316,
+   "max_drawdown": -0.002951364402009604,
+   "win_rate": 0.7142857142857143,
+   "worst_session": -0.0028057121543477725,
+   "turnover_per_session": 0.08732779178730272,
+   "costs_pct": 0.007204559112487541,
+   "sharpe_first_two_thirds": 5.132918980208366,
+   "sharpe_last_third": 6.2763612556176325,
+   "decisions": 257,
+   "proposals": 33,
+   "risk_violations": 0,
+   "risk_violation_rate": 0.0,
+   "violations_by_rule": {},
+   "invalid_outputs": 1,
+   "stops_fired": 2,
+   "sessions_halted": 0
+  },
   "always_fade": {
    "sessions": 55,
    "sessions_traded": 21,
@@ -69,11 +91,18 @@
    "sessions_halted": 0
   }
  },
- "consistency": null,
+ "consistency": {
+  "passes": 3,
+  "nights_compared": 19,
+  "name_decisions_compared": 190,
+  "agreement": 0.9894736842105263,
+  "agreement_when_any_pass_traded": 0.0
+ },
  "stress": [
   {
    "session": "2026-07-31",
    "avg_abs_z": 1.6760000000000002,
+   "agent_run0": 0.018748741167981642,
    "always_fade": -0.012859214728549007,
    "always_follow": 0.01209069084339176,
    "do_nothing": 0.0
@@ -81,6 +110,7 @@
   {
    "session": "2026-07-30",
    "avg_abs_z": 1.131,
+   "agent_run0": 0.010896801430869463,
    "always_fade": -0.008908814453492564,
    "always_follow": 0.01361248588403341,
    "do_nothing": 0.0
@@ -88,6 +118,7 @@
   {
    "session": "2026-07-17",
    "avg_abs_z": 0.907,
+   "agent_run0": 0.0,
    "always_fade": -0.0029624481632356536,
    "always_follow": 0.000568284426321064,
    "do_nothing": 0.0
@@ -95,6 +126,7 @@
   {
    "session": "2026-09-14",
    "avg_abs_z": 0.825,
+   "agent_run0": -3.781261777013878e-05,
    "always_fade": -0.0025172968292348497,
    "always_follow": 0.0007241908216684134,
    "do_nothing": 0.0
@@ -102,9 +134,27 @@
   {
    "session": "2026-09-17",
    "avg_abs_z": 0.789,
+   "agent_run0": 0.0,
    "always_fade": -0.0012404897856728159,
    "always_follow": 3.880508574427566e-05,
    "do_nothing": 0.0
   }
- ]
+ ],
+ "value_added": {
+  "always_fade": {
+   "total_return": 0.10348593524588101,
+   "sharpe": 9.666744897239532,
+   "max_drawdown": 0.043781334707715724
+  },
+  "always_follow": {
+   "total_return": 0.02398967828750176,
+   "sharpe": 1.0040329090994828,
+   "max_drawdown": 0.0018374583706725067
+  },
+  "do_nothing": {
+   "total_return": 0.057955582373930614,
+   "sharpe": 4.319611018727772,
+   "max_drawdown": -0.002951364402009604
+  }
+ }
 }

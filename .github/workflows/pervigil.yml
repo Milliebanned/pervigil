@@ -19,6 +19,10 @@ jobs:
           LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
           LLM_MODEL: ${{ secrets.LLM_MODEL }}
+          BITGET_DEMO_API_KEY: ${{ secrets.BITGET_DEMO_API_KEY }}
+          BITGET_DEMO_SECRET: ${{ secrets.BITGET_DEMO_SECRET }}
+          BITGET_DEMO_PASSPHRASE: ${{ secrets.BITGET_DEMO_PASSPHRASE }}
+          AGENTKEY_API_KEY: ${{ secrets.AGENTKEY_API_KEY }}
         run: python -m pervigil.live
       - name: Rebuild the public page
         run: python -m pervigil.site
