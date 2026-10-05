@@ -80,7 +80,13 @@ NAV_JS = """(function () {
   if (!('IntersectionObserver' in window)) return;
   var io = new IntersectionObserver(function (es) {
     es.forEach(function (e) {
-      if (e.isIntersecting) links.forEach(function (l) { l.classList.toggle('on', l.hash === '#' + e.target.id); });
+      if (!e.isIntersecting) return;
+      links.forEach(function (l) {
+        var on = l.hash === '#' + e.target.id, nav = l.parentNode;
+        l.classList.toggle('on', on);
+        // on phones the menu scrolls sideways: keep the current section's tab in view
+        if (on && nav.scrollWidth > nav.clientWidth) nav.scrollTo({ left: l.offsetLeft - nav.clientWidth / 2 + l.clientWidth / 2, behavior: 'smooth' });
+      });
     });
   }, { rootMargin: '-25% 0px -65% 0px' });
   links.forEach(function (l) { var t = document.querySelector(l.hash); if (t) io.observe(t); });

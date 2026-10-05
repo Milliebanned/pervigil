@@ -412,6 +412,20 @@ footer strong { color: var(--text); font-weight: 600; }
 .ask-form input { flex: 1; min-width: 0; padding: 11px 12px; border-radius: 8px; background: var(--panel); border: 1px solid var(--line-2); color: var(--text); font: 500 0.88rem var(--sans); }
 .ask-form input:focus { outline: 2px solid var(--accent-t); outline-offset: 1px; }
 @media (prefers-reduced-motion: reduce) { .msg.wait, .live-pill.on i { animation: none; } }
+
+/* ---------- Phones and tablets: the sidebar becomes a pinned bar with a sideways-scrolling section menu ---------- */
+@media (max-width: 900px) {
+  .side { position: sticky; top: 0; z-index: 20; padding: 12px 12px 10px; gap: 10px; border-radius: 0 0 var(--r-panel) var(--r-panel); box-shadow: 0 8px 24px -12px rgb(0 0 0 / 0.6); }
+  .shell { padding-top: 0; }
+  .side .promo, .side .btn.docs { display: none; }
+  .brand { font-size: 0.85rem; }
+  .brand svg { width: 28px; height: 28px; }
+  .nav { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 -12px; padding: 0 12px; scroll-padding: 0 12px; }
+  .nav::-webkit-scrollbar { display: none; }
+  .nav a { flex: none; padding: 9px 12px; gap: 8px; font-size: 0.55rem; }
+  .nav a::before { width: 6px; height: 6px; }
+  html { scroll-padding-top: 120px; }
+}
 </style>
 </head>
 <body>
@@ -543,7 +557,13 @@ footer strong { color: var(--text); font-weight: 600; }
   if (!('IntersectionObserver' in window)) return;
   var io = new IntersectionObserver(function (es) {
     es.forEach(function (e) {
-      if (e.isIntersecting) links.forEach(function (l) { l.classList.toggle('on', l.hash === '#' + e.target.id); });
+      if (!e.isIntersecting) return;
+      links.forEach(function (l) {
+        var on = l.hash === '#' + e.target.id, nav = l.parentNode;
+        l.classList.toggle('on', on);
+        // on phones the menu scrolls sideways: keep the current section's tab in view
+        if (on && nav.scrollWidth > nav.clientWidth) nav.scrollTo({ left: l.offsetLeft - nav.clientWidth / 2 + l.clientWidth / 2, behavior: 'smooth' });
+      });
     });
   }, { rootMargin: '-25% 0px -65% 0px' });
   links.forEach(function (l) { var t = document.querySelector(l.hash); if (t) io.observe(t); });
