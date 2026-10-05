@@ -1,0 +1,8 @@
+name = "pervigil-ask"
+main = "worker.js"
+compatibility_date = "2026-09-01"
+
+[vars]
+LLM_BASE_URL = "https://hackathon.bitgetops.com/v1"
+LLM_MODEL = "qwen3.8-max"
+# LLM_API_KEY is a secret: npx wrangler secret put LLM_API_KEY

@@ -11,20 +11,26 @@ import math
 import os
 import re
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from . import guide, scorecard
+from .data import STOCKS, load_all, rtoken
+from .features import Market, normal_day
 from .replay import checkpoints
-from .sessions import NY, current_session, from_ms
+from .sessions import CLOSE, NY, OPEN, cash_closes, current_session, from_ms, is_trading_day, ms
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DOCS = os.path.join(ROOT, "docs")
 LOG = os.path.join(ROOT, "logs", "paper_log.jsonl")
 NOTES = os.path.join(ROOT, "logs", "notes")
+STATE = os.path.join(ROOT, "state", "book.json")
+EARNINGS = os.path.join(ROOT, "data", "earnings.json")
 ARCHIVE = os.path.join(scorecard.RESULTS, "archive")
 CSS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "page.css")
 REPO = "https://github.com/Milliebanned/pervigil"
 AGENT = "agent_run0"
+# The Ask Pervigil backend (ask/worker.js on Cloudflare). Empty hides the box.
+ASK_URL = os.environ.get("PERVIGIL_ASK_URL", "https://pervigil-ask.pervigil.workers.dev")
 FEED_LIMIT = 30
 
 # policy -> (name, what it does, css suffix). Drawn in this order, so the agent's line sits on top.
@@ -46,8 +52,8 @@ LOGO_SYMBOL = """<svg width="0" height="0" style="position:absolute" aria-hidden
 <g class="logo-dot"><circle cx="26.6" cy="22.4" r="2.7"/></g></symbol></svg>"""
 USE_LOGO = '<svg aria-hidden="true"><use href="#logo"/></svg>'
 
-NAV = [("top", "Overview"), ("numbers", "Numbers"), ("how", "How it works"), ("proving", "Proving ground"),
-       ("lab", "Beat the agent"), ("history", "How it got here"), ("hardest", "Hardest nights"), ("log", "Live log"), ("notes", "Morning notes")]
+NAV = [("top", "Overview"), ("desk", "Live desk"), ("numbers", "Numbers"), ("proving", "Proving ground"),
+       ("lab", "Beat the agent"), ("how", "How it works"), ("history", "How it got here"), ("hardest", "Hardest nights"), ("log", "Live log"), ("notes", "Morning notes")]
 
 STEPS = [
     ("Sense", "Each stock's move since the close, sized against its normal day, plus Bitcoin, earnings and news."),
@@ -468,6 +474,295 @@ def live_feed():
     return head, f'<ol class="feed" reversed>{empty}{"".join(reversed(items[-FEED_LIMIT:]))}</ol>'
 
 
+# ---------- live desk ----------
+# The page ships the last hourly candles it has, so the desk draws at once (and still works if Bitget's API
+# cannot be reached from the reader's network); the browser then swaps in live candles and prices.
+
+DESK_HOURS = 168
+
+
+def hourly(rows, since_ms):
+    """15-minute candles -> hourly [ts, open, high, low, close]."""
+    out = {}
+    for ts, o, h, l, c, _ in rows:
+        if ts < since_ms:
+            continue
+        k = ts // 3_600_000 * 3_600_000
+        b = out.setdefault(k, [k, o, h, l, c])
+        b[2], b[3], b[4] = max(b[2], h), min(b[3], l), c
+    return [[b[0]] + [float(f"{v:.6g}") for v in b[1:]] for b in (out[k] for k in sorted(out))]
+
+
+def open_windows(start_ms, end_ms):
+    """[open_ms, close_ms] of every US cash session in range."""
+    d, last, out = from_ms(start_ms).astimezone(NY).date(), from_ms(end_ms).astimezone(NY).date(), []
+    while d <= last:
+        if is_trading_day(d):
+            out.append([ms(datetime.combine(d, OPEN, NY)), ms(datetime.combine(d, CLOSE, NY))])
+        d += timedelta(days=1)
+    return out
+
+
+def desk_data(now_ms):
+    candles = load_all()
+    market = Market(candles)
+    since = (now_ms // 3_600_000 - DESK_HOURS) * 3_600_000
+    closes = cash_closes(now_ms - 10 * 86_400_000, now_ms)
+    vol = {t: normal_day(market, rtoken(t), closes[-1]) for t in STOCKS} if closes else {}
+    recs = [json.loads(l) for l in open(LOG) if l.strip()] if os.path.exists(LOG) else []
+    decisions = [r for r in recs if r["event"] == "decision"]
+    last = decisions[-1] if decisions else None
+    agent = None
+    if last:
+        agent = {k: last.get(k) for k in ("time", "session", "seen", "approved", "reasons", "note", "violations",
+                                          "btc_move", "headlines", "model")}
+    state = json.load(open(STATE)) if os.path.exists(STATE) else {}
+    book, px = state.get("book", {}), (state.get("session") or {}).get("last_prices", {})
+    equity = book.get("cash", 0) + sum(q * px.get(t, 0) for t, q in book.get("qty", {}).items())
+    held = {t: q * px[t] / equity for t, q in book.get("qty", {}).items() if t in px and equity}
+    stamp = lambda r: int(datetime.strptime(r["time"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc).timestamp() * 1000)
+    marks = [{"t": stamp(r), "fills": [[f["ticker"], f["side"]] for f in r.get("fills") or []]}
+             for r in decisions if stamp(r) >= since]
+    earnings = {}
+    if os.path.exists(EARNINGS):
+        first = from_ms(since).astimezone(NY).date().isoformat()
+        for t, days in json.load(open(EARNINGS)).items():
+            if near := {d: v for d, v in days.items() if d >= first}:
+                earnings[t] = near
+    return {"stocks": STOCKS, "hours": DESK_HOURS, "built": now_ms,
+            "bars": {s: hourly(rows, since) for s, rows in candles.items()},
+            "windows": open_windows(now_ms - 12 * 86_400_000, now_ms + 10 * 86_400_000),
+            "vol": {t: round(v, 6) for t, v in vol.items() if v}, "agent": agent,
+            "held": {t: round(w, 4) for t, w in held.items()}, "marks": marks, "earnings": earnings}
+
+
+DESK_JS = """(function () {
+  var el = document.getElementById('desk-data');
+  if (!el) return;
+  var D = JSON.parse(el.textContent), H = 3600000, API = 'https://api.bitget.com/api/v2/spot/market/';
+  var $ = function (id) { return document.getElementById(id); };
+  var bars = D.bars, live = {}, sel = D.stocks[0], fresh = {}, hover = null, isLive = false;
+  var tz = function (o) { o.timeZone = 'America/New_York'; return new Intl.DateTimeFormat('en-GB', o); };
+  var fTime = tz({ hour: '2-digit', minute: '2-digit', hour12: false }), fDay = tz({ weekday: 'short', day: 'numeric', month: 'short' });
+  var fHour = tz({ hour: '2-digit', hour12: false }), fId = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' });
+  var sym = function (t) { return t === 'BTC' ? 'BTCUSDT' : 'R' + t + 'USDT'; };
+  function pct(v, d) { if (v == null) return '\\u2014'; d = d == null ? 2 : d; var t = (Math.abs(v) * 100).toFixed(d) + '%';
+    return Math.abs(v) * 100 < 0.5 / Math.pow(10, d) ? t : (v > 0 ? '+' : '\\u2212') + t; }
+  function cls(v) { return v == null || Math.abs(v) < 5e-5 ? 'flat' : v > 0 ? 'pos' : 'neg'; }
+  function money(v) { return v == null ? '\\u2014' : v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function when(t) { return fDay.format(t) + ', ' + fTime.format(t) + ' ET'; }
+  function ago(t) { var m = Math.round((Date.now() - t) / 60000);
+    return m < 60 ? m + ' min ago' : m < 2880 ? Math.round(m / 60) + 'h ago' : Math.round(m / 1440) + ' days ago'; }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
+  // US market clock
+  function lastClose(t) { var c = null; D.windows.forEach(function (w) { if (w[1] <= t) c = w[1]; }); return c; }
+  function openNow(t) { return D.windows.some(function (w) { return w[0] <= t && t < w[1]; }); }
+  function nextOpen(t) { for (var i = 0; i < D.windows.length; i++) if (D.windows[i][0] > t) return D.windows[i][0]; return null; }
+
+  // prices
+  function priceAt(s, t) { var b = bars[s] || [], p = null;
+    for (var i = 0; i < b.length && b[i][0] + H <= t; i++) p = b[i][4]; return p; }
+  function price(s) { var b = bars[s] || []; return live[s] != null ? live[s] : b.length ? b[b.length - 1][4] : null; }
+  function view(t) {
+    var c = lastClose(Date.now()), ref = priceAt(sym(t), c), p = price(sym(t)), move = ref && p ? p / ref - 1 : null;
+    return { ref: ref, price: p, move: move, z: move != null && D.vol[t] ? move / D.vol[t] : null };
+  }
+  function earningsFor(t) { var o = nextOpen(Date.now()); return o && D.earnings[t] ? D.earnings[t][fId.format(o)] : null; }
+
+  // ---------- chart ----------
+  function draw() {
+    var svg = $('desk-svg'), b = (bars[sym(sel)] || []).slice(-D.hours);
+    if (!b.length) { svg.innerHTML = ''; return; }
+    var W = svg.clientWidth || 800, HT = svg.clientHeight || 320, v = view(sel);
+    var t0 = b[0][0], t1 = b[b.length - 1][0] + H, x = function (t) { return (t - t0) / (t1 - t0) * W; };
+    var lo = Infinity, hi = -Infinity;
+    b.forEach(function (r) { lo = Math.min(lo, r[3]); hi = Math.max(hi, r[2]); });
+    if (v.ref) { lo = Math.min(lo, v.ref); hi = Math.max(hi, v.ref); }
+    var pad = (hi - lo) * 0.08 || hi * 0.01; lo -= pad; hi += pad;
+    var y = function (p) { return (hi - p) / (hi - lo) * HT; }, s = '', ylab = '', xlab = '';
+    D.windows.forEach(function (w) { if (w[1] > t0 && w[0] < t1) {
+      var a = Math.max(x(w[0]), 0), z = Math.min(x(w[1]), W); s += '<rect class="mkt" x="' + a.toFixed(1) + '" y="0" width="' + (z - a).toFixed(1) + '" height="' + HT + '"/>'; } });
+    for (var i = 0; i <= 4; i++) { var p = hi - (hi - lo) * (i + 0.5) / 5;
+      s += '<line class="grid" x1="0" x2="' + W + '" y1="' + y(p).toFixed(1) + '" y2="' + y(p).toFixed(1) + '"/>';
+      ylab += '<span style="top:' + (y(p) / HT * 100).toFixed(2) + '%">' + money(p) + '</span>'; }
+    var every = 24 * H / (t1 - t0) * W >= 70 ? 1 : 2, nth = 0;   // one label per day, or every other day on phones
+    for (var t = Math.ceil(t0 / H) * H; t < t1; t += H) if (fHour.format(t) === '00' && nth++ % every === 0 && x(t) < W - 64)
+      xlab += '<span style="left:' + (x(t) / W * 100).toFixed(2) + '%">' + fDay.format(t + H).replace(/ \\w+$/, '') + '</span>';
+    var bw = Math.max(1, W / b.length * 0.62);
+    b.forEach(function (r) { var cx = x(r[0] + H / 2), up = r[4] >= r[1], top = y(Math.max(r[1], r[4])), h = Math.max(1, Math.abs(y(r[1]) - y(r[4])));
+      s += '<g class="' + (up ? 'up' : 'dn') + '"><line x1="' + cx.toFixed(1) + '" x2="' + cx.toFixed(1) + '" y1="' + y(r[2]).toFixed(1) + '" y2="' + y(r[3]).toFixed(1) + '"/>'
+        + '<rect x="' + (cx - bw / 2).toFixed(1) + '" y="' + top.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + h.toFixed(1) + '"/></g>'; });
+    if (v.ref) s += '<line class="ref" x1="0" x2="' + W + '" y1="' + y(v.ref).toFixed(1) + '" y2="' + y(v.ref).toFixed(1) + '"/>'
+      + '<text class="ref-t" x="6" y="' + (y(v.ref) - 6).toFixed(1) + '">Last US close ' + money(v.ref) + '</text>';
+    D.marks.forEach(function (m) { if (m.t < t0 || m.t > t1) return;
+      var f = m.fills.filter(function (f) { return f[0] === sel; })[0], cx = x(m.t).toFixed(1);
+      s += f ? '<line class="trade ' + f[1] + '" x1="' + cx + '" x2="' + cx + '" y1="0" y2="' + HT + '"/><circle class="trade-dot ' + f[1] + '" cx="' + cx + '" cy="10" r="5"/>'
+             : '<circle class="check" cx="' + cx + '" cy="' + (HT - 6) + '" r="3.5"/>'; });
+    if (hover != null && b[hover]) { var r = b[hover], cx = x(r[0] + H / 2).toFixed(1);
+      s += '<line class="cross" x1="' + cx + '" x2="' + cx + '" y1="0" y2="' + HT + '"/>';
+      $('desk-hover').innerHTML = '<b>' + when(r[0]) + '</b> O ' + money(r[1]) + ' \\u00b7 H ' + money(r[2]) + ' \\u00b7 L ' + money(r[3]) + ' \\u00b7 C ' + money(r[4])
+        + ' \\u00b7 <span>' + (openNow(r[0]) ? 'US market open' : 'US market closed') + '</span>';
+    } else $('desk-hover').textContent = 'Hover the chart to read any hour.';
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + HT);
+    svg.innerHTML = s; $('desk-y').innerHTML = ylab; $('desk-x').innerHTML = xlab;
+  }
+  $('desk-svg').addEventListener('mousemove', function (e) {
+    var b = (bars[sym(sel)] || []).slice(-D.hours), r = this.getBoundingClientRect();
+    hover = Math.max(0, Math.min(b.length - 1, Math.floor((e.clientX - r.left) / r.width * b.length))); draw();
+  });
+  $('desk-svg').addEventListener('mouseleave', function () { hover = null; draw(); });
+
+  // ---------- panels ----------
+  function head() {
+    var v = view(sel), btc = view('BTC'), e = earningsFor(sel);
+    $('desk-name').textContent = sel; $('desk-sym').textContent = sym(sel);
+    $('desk-price').textContent = money(v.price);
+    $('desk-move').textContent = pct(v.move) + ' since the US close'; $('desk-move').className = 'num ' + cls(v.move);
+    $('desk-z').textContent = v.z == null ? '\\u2014' : Math.abs(v.z).toFixed(2) + '\\u00d7';
+    $('desk-z-bar').style.width = Math.min(100, Math.abs(v.z || 0) / 2 * 100).toFixed(1) + '%';
+    $('desk-btc').textContent = pct(btc.move); $('desk-btc').className = 'num ' + cls(btc.move);
+    $('desk-earn').textContent = e ? 'Yes, ' + e : 'None due';
+    var t = Date.now(), o = nextOpen(t);
+    $('desk-clock').textContent = openNow(t) ? 'US market open: Pervigil is off duty' : 'US market closed: Pervigil is on watch' + (o ? ', opens ' + when(o) : '');
+  }
+  function agentCard() {
+    var A = D.agent, box = $('desk-agent');
+    if (!A) { box.innerHTML = '<p class="muted">No decisions logged yet.</p>'; return; }
+    var t = Date.parse(A.time), seen = (A.seen || {})[sel], w = (A.approved || {})[sel], held = D.held[sel];
+    var blocked = (A.violations || []).filter(function (v) { return v[0] === sel; })[0];
+    var call = held ? 'Holding ' + pct(held, 0).replace('+', '') + ' of the account' : w ? 'Moved to ' + pct(w, 0) : 'Stayed out';
+    var html = '<p class="label">Last check \\u00b7 ' + when(t) + ' \\u00b7 ' + ago(t) + '</p>'
+      + '<p class="call ' + (held || w ? (held || w) > 0 ? 'long' : 'short' : 'out') + '">' + call + '</p>'
+      + '<p class="why">' + esc((A.reasons || {})[sel] || A.note || 'No reason recorded.') + '</p><dl class="desk-saw">';
+    if (seen) html += '<div><dt>' + sel + ' then</dt><dd class="' + cls(seen.move) + '">' + pct(seen.move) + ' (' + Math.abs(seen.z).toFixed(2) + '\\u00d7 a normal day)</dd></div>';
+    if (A.btc_move != null) html += '<div><dt>Bitcoin then</dt><dd class="' + cls(A.btc_move) + '">' + pct(A.btc_move) + '</dd></div>';
+    html += '<div><dt>Risk layer</dt><dd>' + (blocked ? 'Blocked (' + esc(blocked[1].replace(/_/g, ' ')) + ')' : 'Nothing blocked') + '</dd></div></dl>';
+    if (A.headlines && A.headlines.length) html += '<p class="label">News it read</p><ul class="desk-news">'
+      + A.headlines.slice(0, 4).map(function (h) { return '<li>' + esc(h.length > 180 ? h.slice(0, 177) + '\\u2026' : h) + '</li>'; }).join('') + '</ul>';
+    box.innerHTML = html;
+  }
+  function board() {
+    $('desk-board').innerHTML = D.stocks.map(function (t) {
+      var v = view(t), h = D.held[t], e = earningsFor(t);
+      return '<li><button type="button" data-t="' + t + '"' + (t === sel ? ' aria-pressed="true"' : ' aria-pressed="false"') + '>'
+        + '<b>' + t + (e ? ' <i class="earn">Earnings</i>' : '') + '</b><span class="num">' + money(v.price) + '</span>'
+        + '<span class="num ' + cls(v.move) + '">' + pct(v.move) + '</span>'
+        + '<span class="num">' + (v.z == null ? '\\u2014' : Math.abs(v.z).toFixed(2) + '\\u00d7') + '</span>'
+        + '<span class="pos-cell">' + (h ? pct(h, 0) : 'Out') + '</span></button></li>';
+    }).join('');
+  }
+  function render() { head(); agentCard(); board(); draw(); askChips();
+    $('desk-live').className = 'live-pill' + (isLive ? ' on' : '');
+    $('desk-live').lastChild.textContent = isLive ? 'Live from Bitget' : 'Prices as of ' + fTime.format(D.built) + ' ET';
+  }
+  $('desk-board').addEventListener('click', function (e) { var b = e.target.closest('button'); if (b) pick(b.dataset.t); });
+  function pick(t) { sel = t; hover = null; render(); loadBars(sym(t)); }
+
+  // ---------- live data ----------
+  function get(path) { return fetch(API + path).then(function (r) { return r.json(); })
+    .then(function (j) { if (j.code !== '00000') throw new Error(j.msg); return j.data; }); }
+  function loadBars(s) {
+    if (fresh[s] && Date.now() - fresh[s] < 5 * 60000) return;
+    get('candles?symbol=' + s + '&granularity=1h&limit=' + D.hours).then(function (d) {
+      bars[s] = d.map(function (r) { return [+r[0], +r[1], +r[2], +r[3], +r[4]]; }).sort(function (a, b) { return a[0] - b[0]; });
+      fresh[s] = Date.now(); isLive = true; render();
+    }).catch(function () {});
+  }
+  function tick() {
+    Promise.all(D.stocks.concat(['BTC']).map(function (t) {
+      return get('tickers?symbol=' + sym(t)).then(function (d) {
+        var p = +d[0].lastPr, b = bars[sym(t)], last = b && b[b.length - 1]; live[sym(t)] = p;
+        if (last && Date.now() < last[0] + H) { last[4] = p; last[2] = Math.max(last[2], p); last[3] = Math.min(last[3], p); }
+      }).catch(function () {});
+    })).then(function () { if (Object.keys(live).length) isLive = true; render(); });
+  }
+  // ---------- ask Pervigil ----------
+  var ask = $('ask'), chat = [], busy = false;
+  function askChips() {
+    if (!ask) return;
+    var held = D.held[sel], qs = ['What news did you read before your last call?',
+      held ? 'Why are you holding ' + sel + '?' : 'Why did you stay out of ' + sel + '?',
+      'What would make you trade ' + sel + '?', 'Is the move in ' + sel + ' right now big?'];
+    $('ask-chips').innerHTML = qs.map(function (q) { return '<button type="button">' + esc(q) + '</button>'; }).join('');
+    $('ask-q').placeholder = 'Ask about ' + sel + '\u2026';
+    [].forEach.call(ask.querySelectorAll('.ask-t'), function (n) { n.textContent = sel; });
+  }
+  function bubble(role, text, extra) {
+    var li = document.createElement('li'); li.className = 'msg ' + role + (extra ? ' ' + extra : '');
+    li.textContent = text; $('ask-log').appendChild(li); $('ask-log').scrollTop = 1e9; return li;
+  }
+  function askQ(q) {
+    q = q.trim(); if (!q || busy) return; busy = true; ask.classList.add('busy');
+    bubble('user', sel + ' \u00b7 ' + q); var wait = bubble('assistant', 'Reading my log and thinking, about 20 seconds\u2026', 'wait');
+    var v = view(sel), btc = view('BTC');
+    fetch(ask.dataset.url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+      ticker: sel, question: q, history: chat.slice(-4),
+      view: { price: v.price, move: v.move, z: v.z, btc: btc.move, open: openNow(Date.now()), held: D.held[sel] || 0 } }) })
+    .then(function (r) { return r.json(); })
+    .then(function (j) { var a = j.answer || j.error || 'No answer came back.'; wait.textContent = a; wait.className = 'msg assistant' + (j.answer ? '' : ' err');
+      if (j.answer) chat.push({ role: 'user', content: '[' + sel + '] ' + q }, { role: 'assistant', content: a }); })
+    .catch(function () { wait.textContent = 'Could not reach Pervigil. Try again in a moment.'; wait.className = 'msg assistant err'; })
+    .then(function () { busy = false; ask.classList.remove('busy'); $('ask-log').scrollTop = 1e9; });
+  }
+  if (ask) {
+    $('ask-chips').addEventListener('click', function (e) { var b = e.target.closest('button'); if (b) askQ(b.textContent); });
+    $('ask-form').addEventListener('submit', function (e) { e.preventDefault(); askQ($('ask-q').value); $('ask-q').value = ''; });
+  }
+  window.addEventListener('resize', draw);
+  render(); loadBars(sym(sel)); loadBars('BTCUSDT'); tick(); setInterval(tick, 15000);
+})();"""
+
+
+def ask_box():
+    if not ASK_URL:
+        return ""
+    return f"""<div class="card ask" id="ask" data-url="{e(ASK_URL)}"><h3>Ask Pervigil</h3>
+          <p class="muted">Ask why it made a call on <b class="ask-t"></b>, what news it read, or what would make it trade. Qwen answers from Pervigil's own decision log and the live prices on this desk.</p>
+          <ol class="ask-log" id="ask-log" aria-live="polite"></ol>
+          <div class="ask-chips" id="ask-chips"></div>
+          <form class="ask-form" id="ask-form"><input id="ask-q" maxlength="400" autocomplete="off" aria-label="Your question">
+            <button class="btn" type="submit">Ask</button></form></div>"""
+
+
+def desk_section(now_ms):
+    data = desk_data(now_ms)
+    return f"""<section class="panel" id="desk">
+    <div class="sec-head"><h2>Live desk</h2>
+    <p>Live Bitget prices for the ten stocks Pervigil watches, with its latest call on each. Shaded bands are US market hours. Every other hour is Pervigil's watch. Dots along the bottom are its decisions, one every six hours while the market is closed. A coloured line is a trade.</p></div>
+    <div class="desk">
+      <div class="desk-main card">
+        <div class="desk-top">
+          <div><p class="label"><span id="desk-sym"></span></p><h3 id="desk-name">&nbsp;</h3>
+            <p class="desk-px"><strong class="num" id="desk-price">&nbsp;</strong> <span id="desk-move"></span></p></div>
+          <p class="live-pill" id="desk-live"><i aria-hidden="true"></i><span></span></p>
+        </div>
+        <dl class="desk-stats">
+          <div><dt class="label">Size of the move</dt><dd><b class="num" id="desk-z">&nbsp;</b> a normal day
+            <span class="zbar" aria-hidden="true"><i id="desk-z-bar"></i><em></em></span></dd></div>
+          <div><dt class="label">Bitcoin since the close</dt><dd><b id="desk-btc">&nbsp;</b></dd></div>
+          <div><dt class="label">Earnings before next open</dt><dd><b id="desk-earn">&nbsp;</b></dd></div>
+        </dl>
+        <div class="chart desk-chart"><div class="y" aria-hidden="true" id="desk-y"></div>
+          <svg id="desk-svg" role="img" aria-label="Hourly price candles for the selected stock over the last week, with US market hours shaded."></svg>
+          <div class="x" aria-hidden="true" id="desk-x"></div></div>
+        <p class="desk-hover" id="desk-hover" aria-live="off">&nbsp;</p>
+        <p class="desk-clock" id="desk-clock">&nbsp;</p>
+      </div>
+      <div class="desk-side">
+        <div class="card desk-agent"><h3>Pervigil's call</h3><div id="desk-agent"><p class="muted">Turn on JavaScript to see the live desk.</p></div></div>
+        {ask_box()}
+      </div>
+    </div>
+    <div class="card desk-list">
+      <div class="desk-row desk-row-head label" aria-hidden="true"><span>Stock</span><span>Price</span><span>Since US close</span><span>Size of move</span><span>Pervigil</span></div>
+      <ul id="desk-board"></ul>
+      <p class="desk-note">Size of move is the move since the 4pm ET close divided by the stock's normal day (the spread of its last 20 daily returns). The fixed rules on this page act at 1&times;. Pervigil decides for itself.</p>
+    </div>
+    <script type="application/json" id="desk-data">{json.dumps(data, separators=(",", ":"))}</script>
+  </section>"""
+
+
 # ---------- morning notes ----------
 
 def notes():
@@ -550,16 +845,13 @@ def build(now_ms=None):
     <div class="hero-id">{USE_LOGO}<h1>Pervigil</h1></div>
     <p class="motto" lang="la">Vigilat dum dormis<span lang="en">It keeps watch while you sleep.</span></p>
     <p class="lede">An AI agent that trades ten big US stocks on Bitget only while the real market is closed, explains every decision in one sentence, and is flat again shortly after the opening bell.</p>
-    <p class="cta"><a class="btn" href="guide.html">Read the docs</a><a class="btn ghost" href="#lab">Beat the agent</a></p>
+    <p class="cta"><a class="btn" href="guide.html">Read the docs</a><a class="btn ghost" href="#desk">Live desk</a><a class="btn ghost" href="#lab">Beat the agent</a></p>
     {week_strip(now_ms)}
   </section>
+  {desk_section(now_ms)}
   <section class="panel" id="numbers">
     <div class="sec-head"><h2>{nights or "Past"} nights, replayed</h2></div>
     {figures(agent)}
-  </section>
-  <section class="panel" id="how">
-    <div class="sec-head"><h2>How the watch works</h2><p>The same five steps, every six hours, for as long as the market is closed.</p></div>
-    <ol class="steps">{steps}</ol>
   </section>
   <section class="panel" id="proving">
     <div class="sec-head"><h2>Proving ground</h2>
@@ -568,6 +860,10 @@ def build(now_ms=None):
     {policy_table(card)}
   </section>
   {lab_section(agent)}
+  <section class="panel" id="how">
+    <div class="sec-head"><h2>How the watch works</h2><p>The same five steps, every six hours, for as long as the market is closed.</p></div>
+    <ol class="steps">{steps}</ol>
+  </section>
   {stages(card)}
   <section class="panel" id="hardest">
     <div class="sec-head"><h2>The hardest nights</h2><p>The five nights the market moved most while closed, and what each strategy made or lost on them.</p></div>
@@ -584,7 +880,7 @@ def build(now_ms=None):
     side = f'{promo}<a class="btn ghost docs" href="guide.html">Read the docs</a>'
     page = shell("Pervigil · the night-shift trading agent",
                  "Pervigil is an AI agent that trades tokenised US stocks only while the real market is closed, "
-                 "and publishes its scorecard.", NAV, side, main, NAV_JS + "\n" + LAB_JS)
+                 "and publishes its scorecard.", NAV, side, main, NAV_JS + "\n" + LAB_JS + "\n" + DESK_JS)
     os.makedirs(DOCS, exist_ok=True)
     open(os.path.join(DOCS, "index.html"), "w").write(page)
     open(os.path.join(DOCS, "logo.svg"), "w").write(LOGO_SVG + "\n")

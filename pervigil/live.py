@@ -149,11 +149,16 @@ def run(now_ms=None):
             earnings = context.load_earnings()
         except Exception:
             earnings = None
+        read = []   # the headlines the agent was shown, kept so the page can say what news it read
+
+        def news(snap):
+            read[:] = headlines_fn(snap) or []
+            return read or None
         try:
-            rec = decide(policies.make_agent(headlines_fn=headlines_fn), market, session, now_ms, book, prices,
+            rec = decide(policies.make_agent(headlines_fn=news), market, session, now_ms, book, prices,
                          srisk, earnings)
             rec.pop("t")
-            log("decision", now_ms, model=llm.config()["LLM_MODEL"], **rec)
+            log("decision", now_ms, model=llm.config()["LLM_MODEL"], headlines=read, **rec)
         except Exception as e:
             log("decision_error", now_ms, session=session.id, error=str(e)[:300])
         state["last_decision_ms"] = now_ms
