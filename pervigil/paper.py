@@ -43,6 +43,8 @@ class Book:
         fill = px * (1 + SLIPPAGE if delta > 0 else 1 - SLIPPAGE)
         notional = abs(delta) * fill
         fee = notional * FEE
+        closed = min(abs(delta), abs(old)) if old * delta < 0 else 0.0
+        realized = closed * (fill - self.entry[ticker]) * (1 if old > 0 else -1) if closed else 0.0
         self.cash -= delta * fill + fee
         self.traded += notional
         self.costs += fee + abs(delta) * abs(fill - px)
@@ -57,7 +59,8 @@ class Book:
                 self.entry[ticker] = fill
             self.qty[ticker] = new
         return {"ticker": ticker, "side": "buy" if delta > 0 else "sell", "qty": abs(delta),
-                "price": fill, "notional": notional, "fee": fee, "target_weight": target}
+                "price": fill, "notional": notional, "fee": fee, "target_weight": target,
+                "realized_pnl": realized, "equity_after": self.equity(prices)}
 
     def flatten(self, prices):
         return [f for t in list(self.qty) if (f := self.set_weight(t, 0.0, prices))]

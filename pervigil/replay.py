@@ -64,22 +64,25 @@ def run_session(policy, market, session, book, step_h=STEP_H, earnings=None, fir
     prices = _prices(market, session.close_ms, {})
     state = risk.SessionRisk(book.equity(prices))
     marks = set(checkpoints(session, step_h)[:1] if first_only else checkpoints(session, step_h))
-    decisions, stops = [], []
+    decisions, stops, stop_fills = [], [], []
     t = session.close_ms + STEP_MS
     while t <= session.open_ms:
         _prices(market, t, prices)
         if book.qty:
-            stops += [(t, *s) for s in risk.check_stops(book, prices, state)]
+            made = []
+            stops += [(t, *s) for s in risk.check_stops(book, prices, state, made)]
+            stop_fills += [{**f, "t": t} for f in made]
         if t in marks:
             decisions.append(decide(policy, market, session, t, book, prices, state, earnings))
         t += STEP_MS
     _prices(market, session.open_ms + EXIT_AFTER_OPEN_MS, prices)
-    book.flatten(prices)
+    exit_fills = book.flatten(prices)
     end = book.equity(prices)
     return {
         "session": session.id, "kind": session.kind, "open_ms": session.open_ms,
         "start_equity": state.start_equity, "end_equity": end, "ret": end / state.start_equity - 1,
         "decisions": decisions, "stops": stops, "halted": state.halted,
+        "stop_fills": stop_fills, "exit_ms": session.open_ms + EXIT_AFTER_OPEN_MS, "exit_fills": exit_fills,
     }
 
 

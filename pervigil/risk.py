@@ -27,18 +27,23 @@ class SessionRisk:
         return cls(d["start_equity"], d["halted"], set(d["blocked"]))
 
 
-def check_stops(book, prices, state):
-    """Mechanical stops, run every candle. -> list of (ticker_or_"*", rule) that fired."""
-    fired = []
+def check_stops(book, prices, state, fills=None):
+    """Mechanical stops, run every candle. -> list of (ticker_or_"*", rule) that fired.
+    fills: if a list is given, the closing fills are appended to it."""
+    fired, made = [], []
     if state.halted:
         return fired
     if book.equity(prices) / state.start_equity - 1 <= SESSION_STOP:
         state.halted = True
-        book.flatten(prices)
+        made += book.flatten(prices)
+        if fills is not None:
+            fills += [{**f, "rule": "session_stop"} for f in made]
         return [("*", "session_stop")]
     for t in list(book.qty):
         if book.pnl_pct(t, prices[t]) <= POSITION_STOP:
-            book.set_weight(t, 0.0, prices)
+            f = book.set_weight(t, 0.0, prices)
+            if fills is not None and f:
+                fills.append({**f, "rule": "position_stop"})
             state.blocked.add(t)
             fired.append((t, "position_stop"))
     return fired

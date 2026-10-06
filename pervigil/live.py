@@ -11,7 +11,7 @@ import os
 import time
 from datetime import datetime, timezone
 
-from . import context, exchange, llm, policies, risk
+from . import context, exchange, llm, policies, risk, trades
 from .data import STEP_MS, STOCKS, update_all
 from .features import Market
 from .paper import Book
@@ -139,9 +139,10 @@ def run(now_ms=None):
     srisk = risk.SessionRisk.from_dict(state["risk"])
 
     if book.qty:
-        stops = risk.check_stops(book, prices, srisk)
+        made = []
+        stops = risk.check_stops(book, prices, srisk, made)
         if stops:
-            log("stops", now_ms, session=session.id, stops=stops, equity=round(book.equity(prices), 2))
+            log("stops", now_ms, session=session.id, stops=stops, fills=made, equity=round(book.equity(prices), 2))
 
     due = [c for c in checkpoints(session) if state["last_decision_ms"] < c <= now_ms]
     if due:
@@ -173,3 +174,4 @@ def run(now_ms=None):
 
 if __name__ == "__main__":
     run()
+    trades.write_live()

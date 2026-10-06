@@ -475,7 +475,9 @@ def live_feed():
     decisions = sum(r["event"] == "decision" for r in recs)
     since = f" since {day(when(recs[0]))}" if recs else ""
     head = (f"{decisions} decisions{since}, newest first. Most of them are decisions not to trade. "
-            f'<a href="{REPO}/blob/main/logs/paper_log.jsonl">Raw log</a>')
+            f'<a href="{REPO}/blob/main/logs/paper_log.jsonl">Raw log</a> · '
+            f'<a href="{REPO}/blob/main/logs/trades.csv">Live trades (CSV)</a> · '
+            f'<a href="{REPO}/blob/main/results/trades.csv">Replay trades (CSV)</a>')
     empty = '<li class="empty">No decisions yet tonight<span>The first one appears here after the next check.</span></li>'
     return head, f'<ol class="feed" reversed>{empty}{"".join(reversed(items[-FEED_LIMIT:]))}</ol>'
 
