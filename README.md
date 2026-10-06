@@ -12,6 +12,7 @@ Bitget AI Base Camp Hackathon S2 · Agentic Trading · Open Theme.
 
 - **Live site:** https://milliebanned.github.io/pervigil/ (no login)
 - **Docs:** https://milliebanned.github.io/pervigil/guide.html
+- **Demo video (2:55):** https://youtu.be/tTQJmRolljw
 
 ## Run records
 
