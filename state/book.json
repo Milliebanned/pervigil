@@ -1,37 +1,12 @@
 {
  "book": {
-  "cash": 10499.250250000001,
-  "qty": {
-   "COIN": -2.7442371020856204
-  },
-  "entry": {
-   "COIN": 182.1089
-  },
-  "traded": 499.75000000000006,
-  "costs": 0.7497499999999537
+  "cash": 10007.514878677415,
+  "qty": {},
+  "entry": {},
+  "traded": 990.9941271953899,
+  "costs": 1.486493441136044
  },
- "session": {
-  "id": "2026-10-07",
-  "open_ms": 1791379800000,
-  "close_ms": 1791316800000,
-  "kind": "overnight",
-  "last_prices": {
-   "NVDA": 239.71,
-   "TSLA": 378.41,
-   "AAPL": 334.28,
-   "MSFT": 531.4,
-   "AMZN": 257.55,
-   "GOOGL": 348.06,
-   "META": 741.6988,
-   "SPY": 779.3487,
-   "QQQ": 758.4,
-   "COIN": 182.2
-  }
- },
- "risk": {
-  "start_equity": 10000.0,
-  "halted": false,
-  "blocked": []
- },
+ "session": null,
+ "risk": null,
  "last_decision_ms": 1791361929772
 }
