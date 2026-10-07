@@ -1,1 +1,2 @@
 time_utc,session,instrument,ticker,direction,action,why,quantity,price,notional_usdt,fee_usdt,realized_pnl_usdt,balance_after_usdt,balance_change_usdt
+2026-10-07T08:32:09Z,2026-10-07,RCOINUSDT,COIN,sell,open short,agent decision,2.744237,182.1089,499.75,0.4998,0.00,9999.25,-0.75
