@@ -12,16 +12,16 @@
   "close_ms": 1792008000000,
   "kind": "overnight",
   "last_prices": {
-   "NVDA": 221.47,
-   "TSLA": 367.4063,
-   "AAPL": 343.0,
-   "MSFT": 532.96,
-   "AMZN": 253.9,
-   "GOOGL": 346.82,
-   "META": 737.5,
-   "SPY": 769.09,
-   "QQQ": 728.0516,
-   "COIN": 172.93
+   "NVDA": 218.66,
+   "TSLA": 363.94,
+   "AAPL": 344.78,
+   "MSFT": 531.8,
+   "AMZN": 250.774,
+   "GOOGL": 344.4,
+   "META": 731.5,
+   "SPY": 767.3978,
+   "QQQ": 722.8039,
+   "COIN": 170.95
   }
  },
  "risk": {
@@ -29,5 +29,5 @@
   "halted": false,
   "blocked": []
  },
- "last_decision_ms": 1791978180215
+ "last_decision_ms": 1792021909336
 }
