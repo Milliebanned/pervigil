@@ -5,3 +5,5 @@ time_utc,session,instrument,ticker,direction,action,why,quantity,price,notional_
 2026-10-16T12:15:47Z,2026-10-16,RTSLAUSDT,TSLA,sell,add,agent decision,1.086069,374.6146,406.86,0.4069,0.00,10012.23,+5.62
 2026-10-16T17:19:19Z,2026-10-16,RTSLAUSDT,TSLA,buy,close short,flat 15 min after the open,2.671502,369.0372,985.88,0.9859,21.12,10026.65,+14.41
 2026-10-19T06:01:13Z,2026-10-19,RQQQUSDT,QQQ,sell,open short,agent decision,1.113871,719.7699,801.73,0.8017,0.00,10025.44,-1.20
+2026-10-19T12:54:51Z,2026-10-19,RQQQUSDT,QQQ,buy,close short,agent decision,1.113871,719.3317,801.24,0.8012,0.49,10025.53,+0.09
+2026-10-19T12:54:51Z,2026-10-19,RCOINUSDT,COIN,buy,open long,agent decision,3.977484,176.5282,702.14,0.7021,0.00,10024.48,-1.05
