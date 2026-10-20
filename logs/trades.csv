@@ -8,3 +8,5 @@ time_utc,session,instrument,ticker,direction,action,why,quantity,price,notional_
 2026-10-19T12:54:51Z,2026-10-19,RQQQUSDT,QQQ,buy,close short,agent decision,1.113871,719.3317,801.24,0.8012,0.49,10025.53,+0.09
 2026-10-19T12:54:51Z,2026-10-19,RCOINUSDT,COIN,buy,open long,agent decision,3.977484,176.5282,702.14,0.7021,0.00,10024.48,-1.05
 2026-10-19T19:13:55Z,2026-10-19,RCOINUSDT,COIN,sell,close long,flat 15 min after the open,3.977484,174.4677,693.94,0.6939,-8.20,10015.94,-8.54
+2026-10-20T23:07:07Z,2026-10-21,RAMZNUSDT,AMZN,buy,open long,agent decision,3.034974,264.1459,801.68,0.8017,0.00,10014.74,-1.20
+2026-10-20T23:07:07Z,2026-10-21,RNVDAUSDT,NVDA,sell,open short,agent decision,3.174100,220.7496,700.68,0.7007,0.00,10013.69,-1.05
