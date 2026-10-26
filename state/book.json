@@ -6,7 +6,28 @@
   "traded": 14957.387880586572,
   "costs": 22.436071485480223
  },
- "session": null,
- "risk": null,
- "last_decision_ms": 1793012266372
+ "session": {
+  "id": "2026-10-27",
+  "open_ms": 1793107800000,
+  "close_ms": 1793044800000,
+  "kind": "overnight",
+  "last_prices": {
+   "NVDA": 216.4553,
+   "TSLA": 392.28,
+   "AAPL": 343.0416,
+   "MSFT": 532.0,
+   "AMZN": 249.2528,
+   "GOOGL": 317.6,
+   "META": 632.7,
+   "SPY": 765.6719,
+   "QQQ": 713.4477,
+   "COIN": 159.6
+  }
+ },
+ "risk": {
+  "start_equity": 9936.222333249421,
+  "halted": false,
+  "blocked": []
+ },
+ "last_decision_ms": 1793054102977
 }
