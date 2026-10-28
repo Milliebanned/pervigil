@@ -1,12 +1,37 @@
 {
  "book": {
-  "cash": 9936.222333249421,
-  "qty": {},
-  "entry": {},
-  "traded": 14957.387880586572,
-  "costs": 22.436071485480223
+  "cash": 9339.154435157794,
+  "qty": {
+   "GOOGL": 2.0288659758559096
+  },
+  "entry": {
+   "GOOGL": 293.99252279999996
+  },
+  "traded": 15553.859307251534,
+  "costs": 23.33062958214261
  },
- "session": null,
- "risk": null,
- "last_decision_ms": 1793191185347
+ "session": {
+  "id": "2026-10-29",
+  "open_ms": 1793280600000,
+  "close_ms": 1793217600000,
+  "kind": "overnight",
+  "last_prices": {
+   "NVDA": 213.9883,
+   "TSLA": 401.7642,
+   "AAPL": 345.11,
+   "MSFT": 546.05,
+   "AMZN": 252.755,
+   "GOOGL": 293.8456,
+   "META": 618.3665,
+   "SPY": 769.1525,
+   "QQQ": 717.789,
+   "COIN": 159.92
+  }
+ },
+ "risk": {
+  "start_equity": 9936.222333249421,
+  "halted": false,
+  "blocked": []
+ },
+ "last_decision_ms": 1793228782834
 }
