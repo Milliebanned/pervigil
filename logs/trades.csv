@@ -20,3 +20,5 @@ time_utc,session,instrument,ticker,direction,action,why,quantity,price,notional_
 2026-10-22T15:02:58Z,2026-10-22,RMETAUSDT,META,sell,close long,flat 15 min after the open,2.177930,650.9743,1417.78,1.4178,-107.26,9937.77,-48.54
 2026-10-22T15:02:58Z,2026-10-22,RTSLAUSDT,TSLA,sell,close long,flat 15 min after the open,2.715572,379.8350,1031.47,1.0315,30.09,9936.22,-1.55
 2026-10-28T23:06:22Z,2026-10-29,RGOOGLUSDT,GOOGL,buy,open long,agent decision,2.028866,293.9925,596.47,0.5965,0.00,9935.33,-0.89
+2026-10-29T09:47:05Z,2026-10-29,RGOOGLUSDT,GOOGL,buy,add,agent decision,1.372923,292.0947,401.02,0.4010,0.00,9930.88,-4.45
+2026-10-29T09:47:05Z,2026-10-29,RMSFTUSDT,MSFT,buy,open long,agent decision,1.087814,548.0262,596.15,0.5962,0.00,9929.98,-0.89
