@@ -25,3 +25,4 @@ time_utc,session,instrument,ticker,direction,action,why,quantity,price,notional_
 2026-10-29T16:51:35Z,2026-10-29,RGOOGLUSDT,GOOGL,sell,close long,flat 15 min after the open,3.401789,283.5568,964.60,0.9646,-32.89,9890.46,-39.52
 2026-10-29T16:51:35Z,2026-10-29,RMSFTUSDT,MSFT,sell,close long,flat 15 min after the open,1.087814,538.2807,585.55,0.5855,-10.60,9889.58,-0.88
 2026-10-29T21:43:47Z,2026-10-30,RAMZNUSDT,AMZN,buy,open long,agent decision,2.585512,229.6147,593.67,0.5937,0.00,9888.69,-0.89
+2026-10-30T08:29:44Z,2026-10-30,RAMZNUSDT,AMZN,buy,add,agent decision,1.785830,226.1230,403.82,0.4038,0.00,9879.06,-9.63
