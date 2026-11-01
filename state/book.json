@@ -12,16 +12,16 @@
   "close_ms": 1793390400000,
   "kind": "weekend",
   "last_prices": {
-   "NVDA": 204.66,
-   "TSLA": 400.51,
-   "AAPL": 346.2,
-   "MSFT": 524.38,
-   "AMZN": 241.16,
-   "GOOGL": 282.83,
-   "META": 613.98,
-   "SPY": 758.21,
-   "QQQ": 695.43,
-   "COIN": 146.59
+   "NVDA": 204.8,
+   "TSLA": 399.78,
+   "AAPL": 346.35,
+   "MSFT": 524.47,
+   "AMZN": 241.28,
+   "GOOGL": 283.04,
+   "META": 615.38,
+   "SPY": 758.34,
+   "QQQ": 696.36,
+   "COIN": 146.38
   }
  },
  "risk": {
@@ -29,5 +29,5 @@
   "halted": false,
   "blocked": []
  },
- "last_decision_ms": 1793524053623
+ "last_decision_ms": 1793551468960
 }
