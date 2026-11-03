@@ -29,3 +29,4 @@ time_utc,session,instrument,ticker,direction,action,why,quantity,price,notional_
 2026-10-30T15:49:04Z,2026-10-30,RAMZNUSDT,AMZN,sell,close long,flat 15 min after the open,4.371341,237.2463,1037.08,1.0371,39.60,9927.14,+48.08
 2026-11-03T01:30:45Z,2026-11-03,RAAPLUSDT,AAPL,buy,open long,agent decision,3.012973,329.6447,993.21,0.9932,0.00,9925.65,-1.49
 2026-11-03T09:25:14Z,2026-11-03,RAAPLUSDT,AAPL,buy,add,agent decision,1.594280,322.6262,514.36,0.5144,0.00,9903.75,-21.91
+2026-11-03T17:42:15Z,2026-11-03,RAAPLUSDT,AAPL,sell,close long,flat 15 min after the open,4.607253,332.2488,1530.75,1.5308,23.19,9947.29,+43.55
