@@ -33,3 +33,4 @@ time_utc,session,instrument,ticker,direction,action,why,quantity,price,notional_
 2026-11-04T06:00:03Z,2026-11-04,RTSLAUSDT,TSLA,buy,open long,agent decision,2.070035,384.6222,796.18,0.7962,0.00,9946.10,-1.19
 2026-11-04T21:13:58Z,2026-11-04,RTSLAUSDT,TSLA,sell,close long,flat 15 min after the open,2.070035,382.7284,792.26,0.7923,-3.92,9941.78,-4.31
 2026-11-05T10:42:03Z,2026-11-05,RCOINUSDT,COIN,buy,open long,agent decision,5.246670,151.6658,795.74,0.7957,0.00,9940.59,-1.19
+2026-11-05T18:39:39Z,2026-11-05,RCOINUSDT,COIN,sell,close long,flat 15 min after the open,5.246670,143.7181,754.04,0.7540,-41.70,9898.54,-42.06
