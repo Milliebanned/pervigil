@@ -32,3 +32,4 @@ time_utc,session,instrument,ticker,direction,action,why,quantity,price,notional_
 2026-11-03T17:42:15Z,2026-11-03,RAAPLUSDT,AAPL,sell,close long,flat 15 min after the open,4.607253,332.2488,1530.75,1.5308,23.19,9947.29,+43.55
 2026-11-04T06:00:03Z,2026-11-04,RTSLAUSDT,TSLA,buy,open long,agent decision,2.070035,384.6222,796.18,0.7962,0.00,9946.10,-1.19
 2026-11-04T21:13:58Z,2026-11-04,RTSLAUSDT,TSLA,sell,close long,flat 15 min after the open,2.070035,382.7284,792.26,0.7923,-3.92,9941.78,-4.31
+2026-11-05T10:42:03Z,2026-11-05,RCOINUSDT,COIN,buy,open long,agent decision,5.246670,151.6658,795.74,0.7957,0.00,9940.59,-1.19
