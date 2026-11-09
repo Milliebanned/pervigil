@@ -1,37 +1,12 @@
 {
  "book": {
-  "cash": 9402.865837648207,
-  "qty": {
-   "NVDA": 2.8096892526567885
-  },
-  "entry": {
-   "NVDA": 176.238075
-  },
-  "traded": 26807.47636691268,
-  "costs": 40.2110753195958
+  "cash": 9897.429196100988,
+  "qty": {},
+  "entry": {},
+  "traded": 27302.534783782332,
+  "costs": 40.95378677141776
  },
- "session": {
-  "id": "2026-11-09",
-  "open_ms": 1794234600000,
-  "close_ms": 1793998800000,
-  "kind": "weekend",
-  "last_prices": {
-   "NVDA": 176.15,
-   "TSLA": 357.37,
-   "AAPL": 343.56,
-   "MSFT": 534.07,
-   "AMZN": 259.29,
-   "GOOGL": 285.84,
-   "META": 610.66,
-   "SPY": 735.08,
-   "QQQ": 651.14,
-   "COIN": 130.16
-  }
- },
- "risk": {
-  "start_equity": 9898.535237109865,
-  "halted": false,
-  "blocked": []
- },
+ "session": null,
+ "risk": null,
  "last_decision_ms": 1794210684108
 }
