@@ -38,3 +38,4 @@ time_utc,session,instrument,ticker,direction,action,why,quantity,price,notional_
 2026-11-09T18:40:20Z,2026-11-09,RNVDAUSDT,NVDA,sell,close long,flat 15 min after the open,2.809689,176.1969,495.06,0.4951,-0.12,9897.43,-0.36
 2026-11-10T09:38:03Z,2026-11-10,RNVDAUSDT,NVDA,sell,open short,agent decision,4.353389,181.7891,791.40,0.7914,0.00,9896.24,-1.19
 2026-11-10T17:39:15Z,2026-11-10,RNVDAUSDT,NVDA,buy,close short,flat 15 min after the open,4.353389,172.0960,749.20,0.7492,42.20,9938.09,+41.84
+2026-11-12T02:49:17Z,2026-11-12,RNVDAUSDT,NVDA,buy,open long,agent decision,4.290527,162.2211,696.01,0.6960,0.00,9937.04,-1.04
