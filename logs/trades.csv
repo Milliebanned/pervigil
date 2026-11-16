@@ -47,3 +47,5 @@ time_utc,session,instrument,ticker,direction,action,why,quantity,price,notional_
 2026-11-16T01:49:40Z,2026-11-16,RNVDAUSDT,NVDA,sell,open short,agent decision,3.688317,161.2194,594.63,0.5946,0.00,9914.53,-49.47
 2026-11-16T09:26:01Z,2026-11-16,RCOINUSDT,COIN,buy,reduce,agent decision,4.556565,119.6798,545.33,0.5453,-13.01,9924.24,+9.71
 2026-11-16T09:26:01Z,2026-11-16,RNVDAUSDT,NVDA,sell,add,agent decision,2.535341,159.3803,404.08,0.4041,0.00,9923.64,-0.61
+2026-11-16T20:16:24Z,2026-11-16,RCOINUSDT,COIN,buy,close short,flat 15 min after the open,4.148580,121.0305,502.10,0.5021,-17.45,9898.71,-24.93
+2026-11-16T20:16:24Z,2026-11-16,RNVDAUSDT,NVDA,buy,close short,flat 15 min after the open,6.223658,162.5262,1011.51,1.0115,-12.80,9897.19,-1.52
