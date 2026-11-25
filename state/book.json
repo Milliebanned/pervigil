@@ -7,21 +7,21 @@
   "costs": 64.35681015129622
  },
  "session": {
-  "id": "2026-11-25",
-  "open_ms": 1795617000000,
-  "close_ms": 1795554000000,
-  "kind": "overnight",
+  "id": "2026-11-27",
+  "open_ms": 1795789800000,
+  "close_ms": 1795640400000,
+  "kind": "weekend",
   "last_prices": {
-   "NVDA": 147.15,
-   "TSLA": 374.05,
-   "AAPL": 351.22,
-   "MSFT": 479.27,
-   "AMZN": 244.9583,
-   "GOOGL": 268.96,
-   "META": 578.6,
-   "SPY": 704.8162,
-   "QQQ": 619.5,
-   "COIN": 100.0
+   "NVDA": 148.5923,
+   "TSLA": 379.1288,
+   "AAPL": 355.01,
+   "MSFT": 490.33,
+   "AMZN": 244.7783,
+   "GOOGL": 272.55,
+   "META": 607.7433,
+   "SPY": 716.0943,
+   "QQQ": 631.68,
+   "COIN": 104.3
   }
  },
  "risk": {
@@ -29,5 +29,5 @@
   "halted": false,
   "blocked": []
  },
- "last_decision_ms": 1795610101329
+ "last_decision_ms": 1795645396712
 }
