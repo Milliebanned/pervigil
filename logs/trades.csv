@@ -61,3 +61,6 @@ time_utc,session,instrument,ticker,direction,action,why,quantity,price,notional_
 2026-11-27T08:04:53Z,2026-11-27,RCOINUSDT,COIN,buy,open long,agent decision,7.106577,108.2841,769.53,0.7695,0.00,9613.16,-1.15
 2026-11-27T08:04:53Z,2026-11-27,RNVDAUSDT,NVDA,buy,open long,agent decision,3.721702,155.0575,577.08,0.5771,0.00,9612.29,-0.87
 2026-11-27T08:04:53Z,2026-11-27,RAMZNUSDT,AMZN,sell,open short,agent decision,2.289731,251.7541,576.45,0.5764,0.00,9611.43,-0.86
+2026-11-27T18:05:54Z,2026-11-27,RCOINUSDT,COIN,sell,close long,flat 15 min after the open,7.106577,106.6566,757.96,0.7580,-11.57,9574.17,-37.25
+2026-11-27T18:05:54Z,2026-11-27,RNVDAUSDT,NVDA,sell,close long,flat 15 min after the open,3.721702,147.5012,548.96,0.5490,-28.12,9573.35,-0.82
+2026-11-27T18:05:54Z,2026-11-27,RAMZNUSDT,AMZN,buy,close short,flat 15 min after the open,2.289731,251.0254,574.78,0.5748,1.67,9572.49,-0.86
